@@ -68,3 +68,19 @@ variable "skip_final_snapshot" {
   description = "Whether to skip the final snapshot when deleting the RDS instance"
   type        = bool
 }
+
+variable "db_username" {
+  description = "Database username"
+  type        = string
+}
+
+variable "db_password" {
+  description = "Database password"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_name" {
+  description = "The name of the database"
+  type        = string
+}

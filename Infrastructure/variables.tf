@@ -154,8 +154,21 @@ variable "health_check_path" {
 }
 
 variable "snapshot_id" {
-  description = "RDS snapshot ID to restore the database from."
+  description = "The snapshot ID to restore the RDS instance from (optional)"
   type        = string
+  default     = null
+}
+
+variable "db_username" {
+  description = "Database username"
+  type        = string
+  default     ="grocery_user"
+}
+
+variable "db_password" {
+  description = "Database password"
+  type        = string
+  sensitive   = true
 }
 
 variable "bucket_name" {
