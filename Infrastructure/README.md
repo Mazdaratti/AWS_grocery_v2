@@ -27,6 +27,7 @@ The Terraform configuration is modularized as follows:
 │   ├── cloudwatch_logging
 │   ├── ec2_launch_template
 │   ├── iam_role
+│   ├── lambda
 │   ├── rds
 │   ├── s3_bucket
 │   ├── security_groups
@@ -62,8 +63,8 @@ The Terraform configuration is modularized as follows:
     - Maximum: 4
     - Desired: 3 
 - **Docker Deployment**:
-  - EC2 instances pull frontend and backend images from ECR.
-  - Containers start automatically using `docker-compose.yml`.
+  - EC2 instances pull docker image from ECR.
+  - Container start automatically using start.sh.
 
 ### 4. **Application Load Balancer (ALB)**
 - Distributes incoming traffic across EC2 instances via Target Group.
@@ -71,9 +72,9 @@ The Terraform configuration is modularized as follows:
 - Health check path: `/health`
 
 ### 5. **Container Registry (ECR)**
-- Two ECR repositories are provisioned:
-  - `aws_grocery-frontend` (Frontend container images)
-  - `aws_grocery-backend` (Backend container images)
+- One ECR repository is provisioned:
+  - `aws_grocery-app` (Application container image)
+ 
 
 ### 6. **Database (Amazon RDS - PostgreSQL)**
 - **Engine**: PostgreSQL
@@ -166,7 +167,7 @@ allowed_ssh_ip     = "YOUR_IP_ADDRESS"
 ami_id             = "YOUR_CUSTOM_AMI_ID"
 snapshot_id        = "YOUR_RDS_SNAPSHOT_ID"
 key_name           = "YOUR KEY PAIR NAME"
-bucket_name        = "YOUR_S3_BUCKET_NAME"
+bucket_name        = "YOUR_S3_BUCKET_NAME" Should be UNIQUE!!!
 ```
 ## Outputs
 After deployment, Terraform provides the following outputs:
