@@ -13,4 +13,9 @@ resource "aws_db_instance" "rds" {
   vpc_security_group_ids = var.vpc_security_group_ids
   db_subnet_group_name   = var.db_subnet_group_name
   skip_final_snapshot    = var.skip_final_snapshot
+
+  # Database credentials
+  username = var.db_username
+  password = var.db_password
+  db_name  = var.db_name
 }

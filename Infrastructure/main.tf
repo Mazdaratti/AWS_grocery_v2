@@ -76,7 +76,7 @@ module "rds" {
   allocated_storage      = 20
   storage_type           = "gp2"
   engine                 = "postgres"
-  engine_version         = "16.3"
+  engine_version         = "17.4"
   storage_encrypted      = true
   deletion_protection    = false
   publicly_accessible    = false
@@ -84,6 +84,11 @@ module "rds" {
   vpc_security_group_ids = [module.security_groups.rds_security_group_id]
   db_subnet_group_name   = module.vpc.db_subnet_group_name
   skip_final_snapshot    = true
+
+  # Database credentials (From terraform.tfvars)
+  db_username = var.db_username
+  db_password = var.db_password
+  db_name     = "grocerymate"
 }
 
 module "lambda" {
