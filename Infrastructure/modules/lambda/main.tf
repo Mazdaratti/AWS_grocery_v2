@@ -46,6 +46,30 @@ resource "aws_iam_role_policy_attachment" "lambda_s3_attach" {
   policy_arn = aws_iam_policy.lambda_s3_policy.arn
 }
 
+resource "aws_iam_policy" "lambda_rds_policy" {
+  name        = "${var.lambda_role_name}-rds-access"
+  description = "Allow Lambda to connect to RDS and execute SQL scripts"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "rds:DescribeDBInstances",
+          "rds:ExecuteStatement"
+        ]
+        Resource = var.rds_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_rds_attach" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.lambda_rds_policy.arn
+}
+
 resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
