@@ -1,5 +1,5 @@
 resource "aws_db_instance" "rds" {
-  identifier             = var.identifier
+  identifier             = var.db_identifier
   snapshot_identifier    = var.snapshot_id
   instance_class         = var.instance_class
   allocated_storage      = var.allocated_storage
