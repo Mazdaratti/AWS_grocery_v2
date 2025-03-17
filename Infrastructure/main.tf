@@ -5,8 +5,7 @@ provider "aws" {
 
 # ECR Repositories
 resource "aws_ecr_repository" "repos" {
-  for_each = toset(["app"])
-  name     = "aws_grocery-${each.key}"
+  name     = "aws_grocery-app"
 }
 
 module "vpc" {
@@ -55,16 +54,16 @@ module "ec2_launch_template" {
   volume_size               = 20
   volume_type               = "gp3"
   region                    = var.region
-  ecr_repository_url        = aws_ecr_repository.repos["app"].repository_url
+  ecr_repository_url        = aws_ecr_repository.repos.repository_url
   image_tag                 = "latest"
 }
 
 module "asg" {
   source             = "./modules/asg"
   asg_name           = "grocery-asg"
-  desired_capacity   = 0 # adjust for desired capacity
+  desired_capacity   = 1 # adjust for desired capacity
   max_size           = 4 # adjust for desired max_size
-  min_size           = 0 # adjust for desired min_size
+  min_size           = 1 # adjust for desired min_size
   public_subnet_ids  = module.vpc.public_subnet_ids
   launch_template_id = module.ec2_launch_template.launch_template_id
   ec2_name           = "grocery-ec2"
