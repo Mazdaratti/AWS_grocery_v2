@@ -60,15 +60,26 @@ resource "aws_security_group" "rds_sg" {
     from_port   = var.rds_port
     to_port     = var.rds_port
     protocol    = "tcp"
-    security_groups = [aws_security_group.ec2_sg.id]
-    description     = "Allow access from EC2 instances"
+    security_groups = [aws_security_group.ec2_sg.id,aws_security_group.lambda_sg.id]
+    description     = "Allow access from EC2 instances and Lambda"
   }
+}
+
+# Security Group for Lambda
+resource "aws_security_group" "lambda_sg" {
+  name        = "lambda-sg"
+  description = "Allow Lambda to connect to RDS and S3"
+  vpc_id      = var.vpc_id
 
   egress {
-    from_port   = var.rds_port
-    to_port     = var.rds_port
-    protocol    = "tcp"
-    security_groups = [aws_security_group.ec2_sg.id]
-    description     = "Allow outbound access to EC2 instances"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"] # Allow outbound traffic to RDS and S3
+    description = "Allow all outbound traffic"
+  }
+
+  tags = {
+    Name = "lambda-sg"
   }
 }
