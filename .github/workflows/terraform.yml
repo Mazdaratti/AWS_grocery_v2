@@ -29,8 +29,15 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
+      - name: List files for debugging
+        run: ls -R infrastructure
+
       - name: Initialize Terraform
-        run: terraform init
+        run: terraform init -no-color
+        working-directory: infrastructure
+
+      - name: Validate Terraform Configuration
+        run: terraform validate
         working-directory: infrastructure
 
       - name: Set Terraform Variables
@@ -45,6 +52,7 @@ jobs:
       - name: Apply Terraform
         run: |
           terraform apply -auto-approve || exit 1
+        working-directory: infrastructure
 
       - name: Retrieve Terraform Outputs
         run: |
