@@ -30,7 +30,7 @@ The infrastructure is designed for **high availability, scalability, and securit
 ## Architecture Diagrams
 
 **Resource Overview** 
-![Recources]![Resources_v2](https://github.com/user-attachments/assets/f602fc2d-3778-4e0a-98b0-92051f1e2aa1)
+![Recources](https://github.com/user-attachments/assets/f602fc2d-3778-4e0a-98b0-92051f1e2aa1)
 
 
 **Networking**
