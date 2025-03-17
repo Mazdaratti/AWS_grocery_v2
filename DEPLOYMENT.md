@@ -363,6 +363,26 @@ cd AWS_grocery_v2
 |--------------------|-----------------------------|-----------------------|
 | JWT_SECRET_KEY    | Secret key for JWT token generation | `XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`|
 
+### Step 7: Deploy the Infrastructure
+
+1. Push your changes to the main branch to trigger the GitHub Actions workflow.
+2. The workflow will:
+
+    - Create the VPC, subnets, and security groups.
+    - Provision the RDS instance and S3 bucket.
+    - Build and push the Docker image to ECR.
+    - Launch EC2 instances using the Auto Scaling Group (ASG).
+    - Configure the Application Load Balancer (ALB) and attach the EC2 instances.
+
+### Step 8: Verify the Deployment
+
+1. After the workflow completes, check the outputs in the GitHub Actions logs.
+2. Use the ALB DNS Name output to access the application in your browser.
+3. SSH into an EC2 instance using the key pair created earlier:
+
+    ```bash
+    ssh -i path/to/your-key.pem ec2-user@<EC2_PUBLIC_IP>
+    ```
 ---
 ## Conclusion
 
