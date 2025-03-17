@@ -37,3 +37,18 @@ variable "volume_type" {
   description = "Type of the EBS volume"
   type        = string
 }
+
+variable "region" {
+  description = "The AWS region to deploy resources"
+  type        = string
+}
+
+variable "ecr_repository_url" {
+  description = "The URI of the ECR repository"
+  type        = string
+}
+
+variable "image_tag" {
+  description = "The tag of the Docker image"
+  type        = string
+}
