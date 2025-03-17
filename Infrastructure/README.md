@@ -10,8 +10,6 @@ The infrastructure is designed for high availability, scalability, and security.
 ## Project Diagrams
 ![Resources_v2](https://github.com/user-attachments/assets/379a8a3a-9270-4ce2-bc57-aed5c9747dd2)
 
-![Recources](https://github.com/user-attachments/assets/26ab4fdc-c449-4e68-9ef3-a16afaf22977)
-
 ![Networking](https://github.com/user-attachments/assets/bac04d27-f24f-4156-a797-2f1b2f5232c3)
 
 ![Security_groups](https://github.com/user-attachments/assets/be4133e0-34ea-41e5-a27e-f03a5fbfc863)
