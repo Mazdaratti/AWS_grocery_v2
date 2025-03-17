@@ -367,7 +367,7 @@ git clone https://github.com/Mazdaratti/AWS_grocery_v2.git
 cd AWS_grocery_v2
 ```
 
-### 🔑 Step 6: Set Variables in GitHub Secrets
+###  Step 6: 🔑 Set Variables in GitHub Secrets
 1. Go to your GitHub repository.
 2. Navigate to **Settings > Secrets and variables > Actions**.
 3. Click **New repository secret** and add the following secrets:
