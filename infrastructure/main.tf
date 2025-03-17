@@ -1,6 +1,8 @@
 provider "aws" {
-  region  = "eu-central-1"
-  profile = "default"
+  region  = var.region
+  assume_role {
+    role_arn = var.role_arn  # Make sure the correct role ARN is specified
+  }
 }
 
 # ECR Repositories

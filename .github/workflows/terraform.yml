@@ -48,6 +48,7 @@ jobs:
           echo "TF_VAR_db_password=${{ secrets.TF_VAR_db_password }}" >> $GITHUB_ENV
           echo "TF_VAR_db_name=${{ secrets.TF_VAR_db_name }}" >> $GITHUB_ENV
           echo "TF_VAR_region=${{ secrets.TF_VAR_region }}" >> $GITHUB_ENV
+          echo "TF_VAR_role_arn=${{ secrets.arn_github_role }}" >> $GITHUB_ENV
 
       - name: Apply Terraform
         run: |
