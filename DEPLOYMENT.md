@@ -1,6 +1,38 @@
 # Deployment Guide for AWS Grocery App
 
-## Introduction
+
+## 📖 Table of Contents
+
+1. [🏁 Introduction](#-introduction)  
+2. [🏗️ Infrastructure Overview](#-infrastructure-overview)  
+3. [🏛️ Architecture Diagrams](#-architecture-diagrams)  
+4. [🛠️ Terraform Configuration](#-terraform-configuration)  
+5. [🏢 Infrastructure Components](#-infrastructure-components)  
+   - [🌐 Virtual Private Cloud (VPC)](#-virtual-private-cloud-vpc)  
+   - [🔐 Security Groups](#-security-groups)  
+   - [🖥️ Compute Infrastructure (EC2 & Auto Scaling Group)](#-compute-infrastructure-ec2--auto-scaling-group)  
+   - [⚖️ Application Load Balancer (ALB)](#-application-load-balancer-alb)  
+   - [📦 Container Registry (ECR)](#-container-registry-ecr)  
+   - [🗄️ Database (Amazon RDS - PostgreSQL)](#-database-amazon-rds---postgresql)  
+   - [🗂️ Storage (S3 Bucket)](#-storage-s3-bucket)  
+   - [🎭 IAM Roles & Policies](#-iam-roles--policies)  
+   - [🔄 Lambda Function & Step Functions](#-lambda-function--step-functions)  
+6. [🧩 Terraform Modules](#-terraform-modules)  
+7. [🚀 Deployment Guide](#-deployment-guide)  
+   - [🔄 Automated Deployment Workflow](#-automated-deployment-workflow)  
+   - [📜 Workflow Steps](#-workflow-steps)  
+   - [🔑 GitHub Secrets Setup](#-github-secrets-setup)  
+   - [💻 Step-by-Step Deployment Guide](#-step-by-step-deployment-guide)  
+8. [🛠️ Troubleshooting](#-troubleshooting)  
+9. [❓ FAQ](#-faq)  
+10. [📚 Glossary](#-glossary)  
+11. [🔮 Future Enhancements](#-future-enhancements)  
+12. [🏗️ Creating AWS Lambda Layer for Boto3 & Psycopg2](#-creating-aws-lambda-layer-for-boto3--psycopg2)  
+13. [🤝 Contributing](#-contributing)  
+14. [📜 License](#-license)  
+
+---
+## 🏁 Introduction
 
 This project is part of the **Cloud Track** in our Software Engineering bootcamp at Masterschool. 
 The application was originally developed by **Alejandro Román**, our Track Mentor (huge thanks to him!). 
@@ -15,7 +47,7 @@ For details about the **application's features, functionality, and local install
 This document focuses exclusively on the **AWS infrastructure, deployment process, and automation**.
 
 ---
-## Infrastructure Overview
+## 🏗️ Infrastructure Overview
 
 This modularized Terraform configuration provisions the infrastructure for a grocery web application using AWS.
 The setup includes:
@@ -27,11 +59,10 @@ The setup includes:
 The infrastructure is designed for **high availability, scalability, and security**.
 
 ---
-## Architecture Diagrams
+## 🏛️ Architecture Diagrams
 
 **Resource Overview** 
 ![Recources](https://github.com/user-attachments/assets/f602fc2d-3778-4e0a-98b0-92051f1e2aa1)
-
 
 **Networking**
 ![Networking](https://github.com/user-attachments/assets/bac04d27-f24f-4156-a797-2f1b2f5232c3)
@@ -40,7 +71,7 @@ The infrastructure is designed for **high availability, scalability, and securit
 ![Security_groups](https://github.com/user-attachments/assets/be4133e0-34ea-41e5-a27e-f03a5fbfc863)
 
 
-## Terraform configuration
+## 🛠️ Terraform configuration
 
 The Terraform configuration is modularized as follows:
 
@@ -64,21 +95,21 @@ The Terraform configuration is modularized as follows:
 │── lambda_data
 ```
 
-## Infrastructure Components
+## 🏢 Infrastructure Components
 
-### **1. Virtual Private Cloud (VPC)**
+### **1. 🌐 Virtual Private Cloud (VPC)**
 - **Subnets:** 3 Public (for ALB, EC2) & 3 Private (for RDS).
 - **Internet Gateway:** Provides internet access to public subnets.
 - **Route Table**: Configured for public subnets routing.
 - **VPC Endpoint Gateway:** Provides access to S3 bucket over AWS network.
 
-### **2. Security Groups**
+### **2. 🔐 Security Groups**
 - ALB security group allows ports 80 and 443.
 - EC2 security group allows SSH from a specific IP and ALB traffic over port 5000.
 - RDS security group allows access only from EC2 instances.
 - Lambda security allows outbound connection to RDS instance
 
-### **3. Compute Infrastructure (EC2 & Auto Scaling Group)**
+### **3. 🖥️ Compute Infrastructure (EC2 & Auto Scaling Group)**
 - **Auto Scaling Group (ASG)**:
   - Uses a **Launch Template** with user_data for EC2 configuration.
   - Deploys EC2 instances in public subnets.
@@ -87,21 +118,21 @@ The Terraform configuration is modularized as follows:
   - EC2 instances pull docker image from ECR.
   - Container start automatically.
 
-### **4. Application Load Balancer (ALB)**
+### **4. ⚖️ Application Load Balancer (ALB)**
 - Distributes incoming traffic across EC2 instances via Target Group.
 - Listens on port 80 and 443.
 - Health check path: `/health`
 
-### **5. Container Registry (ECR)**
+### **5. 📦 Container Registry (ECR)**
 - Stores the **Docker image** of the application.
 - EC2 instances pull the latest image during launching from the template.
 
-### **6. Database (Amazon RDS - PostgreSQL)**
+### **6. 🗄️ Database (Amazon RDS - PostgreSQL)**
 - **Instance Type:** `db.t3.micro` (free-tier eligible).
 - **Multi-AZ Deployment:** Enabled.
 - **Security:** Deployed in a **private subnet** with restricted access.
 
-### **7. Storage (S3 Bucket)**
+### **7. 🗂️ Storage (S3 Bucket)**
 - **Purpose**: Stores user avatar images and db_dump files
 - **Configuration**:
   - **Bucket Name**: Set via Terraform variables.
@@ -114,14 +145,14 @@ The Terraform configuration is modularized as follows:
   - **Preloaded db_dump file**: `sqlite_dump_clean.sql` is uploaded
   - **Preloaded lambda_layer file**: `boto3-psycopg2-layer.zip` is uploaded
 
-### **8. IAM Roles & Policies**
+### **8. 🎭 IAM Roles & Policies**
 - **EC2 Role:** Allows pulling images from ECR and accessing S3.
 - **Lambda Role:** Allows accessing S3, describing RDS, managing network.
 - **Step Functions Role:** Grants permissions to interact with RDS, S3, and Lambda.
 - **S3 Role**: Allows EC2 to access 'avatar' folder and Lambda 'db_dump' folder
 
 
-### **9. Lambda Function & Step Functions**
+### **9. 🔄 Lambda Function & Step Functions**
 - **Purpose**: Ensures the database is populated once the infrastructure is ready.
 - **Step Functions**:
   - Monitors **RDS availability**.
@@ -171,7 +202,7 @@ The Terraform configuration is modularized as follows:
    - **Lambda Failure**: If the Lambda function fails to execute, the Step Function transitions to `HandleLambdaFailure` and logs the error.
 ---
 
-## Terraform Modules
+## 🧩 Terraform Modules
 
 This infrastructure is modularized for reusability and maintainability:
 
@@ -232,13 +263,15 @@ This modular Terraform setup ensures a scalable and secure AWS infrastructure fo
 making it easy to maintain and extend the architecture as needed. 
 The addition of Lambda, Step Functions, and EventBridge automates the database population process, while S3 provides flexible storage for user avatars, database dumps, and lambda layers.
 
-# Deployment Guide
+---
+
+# 🚀 Deployment Guide
 
 This document provides a step-by-step guide to deploying the AWS infrastructure for the grocery web application using Terraform and GitHub Actions.
 
 ---
 
-## **Automated Deployment Workflow Overview**
+## 🔄 **Automated Deployment Workflow Overview**
 
 This project uses **GitHub Actions** to automate the infrastructure provisioning and deployment process. The workflow consists of two phases:
 
@@ -266,7 +299,7 @@ This project uses **GitHub Actions** to automate the infrastructure provisioning
 
 This approach ensures **proper dependency management**, avoiding race conditions.
 
-### **Workflow Steps**
+###  **Workflow Steps**
 
 1. **Checkout Repository**
 2. **Configure AWS Credentials**
@@ -284,13 +317,13 @@ This approach ensures **proper dependency management**, avoiding race conditions
 ### **Triggering the Workflow**
 The workflow is automatically triggered on pushes to the `main` branch.
 
-### **GitHub Secrets**
+###  **GitHub Secrets**
 The following secrets must be configured in the GitHub repository:
 (see *Step-by-Step Deployment Guide*)
 
 ---
 
-## Step-by-Step Deployment Guide
+## 💻 Step-by-Step Deployment Guide
 
 Follow these steps to clone the repository and deploy the application:
 
@@ -334,7 +367,7 @@ git clone https://github.com/Mazdaratti/AWS_grocery_v2.git
 cd AWS_grocery_v2
 ```
 
-### Step 6: Set Variables in GitHub Secrets
+### 🔑 Step 6: Set Variables in GitHub Secrets
 1. Go to your GitHub repository.
 2. Navigate to **Settings > Secrets and variables > Actions**.
 3. Click **New repository secret** and add the following secrets:
@@ -393,7 +426,7 @@ The modular structure allows for easy scaling and customization, making it adapt
 
 ---
 
-## Troubleshooting
+## 🛠️ Troubleshooting
 
 **Issue: Terraform Plan Fails**
 - **Cause:** Missing or incorrect variables in GitHub Secrets.
@@ -409,7 +442,7 @@ The modular structure allows for easy scaling and customization, making it adapt
 
 ---
 
-## FAQ
+## ❓ FAQ
 
 ### Q: How do I change the instance type?
 A: Update the `instance_type` variable in `terraform.tfvars`.
@@ -420,7 +453,7 @@ A: Use the **RDS Endpoint** output to connect to the database from an EC2 instan
 ### Q: How do I extend the infrastructure?
 A: Add new modules or modify existing ones in the `modules` directory.
 
-## Glossary
+## 📚 Glossary
 
 - **VPC**: Virtual Private Cloud.
 - **ALB**: Application Load Balancer.
@@ -429,11 +462,13 @@ A: Add new modules or modify existing ones in the `modules` directory.
 - **RDS**: Relational Database Service.
 - **IAM**: Identity and Access Management.
 
-## Future Enhancements
+## 🚀 Future Enhancements
 
 - ✅Implement **CI/CD pipelines** for automated deployments.
 - ✅Integrate **AWS Lambda** for migration of local database to rds.
 - Implement **Terraform Remote Backend**
+
+---
 
 ## Creating the AWS Lambda Layer for Boto3 and Psycopg2
 
@@ -520,7 +555,9 @@ ensure the created layer is renamed meaningfully (e.g., boto3-psycopg2-layer.zip
 This version keeps the focus on how the layer is created using Docker. 
 Let me know if you need any tweaks! 🚀
 
-### **Contributing**
+---
+
+### 🤝 **Contributing**
 
 We welcome contributions! Follow these steps:
 - **Fork** the repository
@@ -528,6 +565,6 @@ We welcome contributions! Follow these steps:
 - **Implement changes & commit**
 - **Push & create a Pull Request (PR)**
 
-### **License**
+### 📜 **License**
 
 This project is licensed under the MIT License and is free for non-commercial use.
