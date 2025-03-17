@@ -1,4 +1,4 @@
-variable "identifier" {
+variable "db_identifier" {
   description = "The name of the RDS instance"
   type        = string
 }
