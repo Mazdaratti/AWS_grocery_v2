@@ -373,20 +373,21 @@ cd AWS_grocery_v2
 3. Click **New repository secret** and add the following secrets:
 
 #### AWS Authentication Variables
-| Secret Name       | Description             | Example Value         |
-|-------------------|-------------------------|-----------------------|
-| aws_access_key_id | AWS Access Key ID       | `AKIAXXXXXXXXXXXXXXXX` |
-|aws_secret_access_key | AWS Secret Access Key   | `XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` |
+| Secret Name           | Description           | Example Value         |
+|-----------------------|-----------------------|-----------------------|
+| aws_access_key_id     | AWS Access Key ID     | `AKIAXXXXXXXXXXXXXXXX` |
+| aws_secret_access_key | AWS Secret Access Key | `XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` |
+| aws_session_token     | AWS Session Token     | `XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` |
 
 #### Terraform Variables
-| Secret Name            | Description                         | Example Value         |
-|------------------------|-------------------------------------|-----------------------|
+| Secret Name           | Description                         | Example Value         |
+|-----------------------|-------------------------------------|-----------------------|
 | TF_VAR_region         | AWS region                          | `eu-central-1` |
 | TF_VAR_db_user        | RDS database username               | `admin` |
 | TF_VAR_db_password    | RDS database password               | `SecurePassword123!` |
 | TF_VAR_db_name        | RDS database name                   | `grocery_db` |
 | TF_VAR_bucket_name    | S3 bucket name (unique!!!)          | `my-grocery-bucket-v5` |
-| TF_VAR_key_name       | SSH key pair name                   | `grocery-key` |
+| TF_VAR_ssh_key_name   | SSH key pair name                   | `grocery-key` |
 | TF_VAR_ami_id         | AMI ID for EC2 instances (optional) | `ami-06ee6255945a96aba` |
 | TF_VAR_allowed_ssh_ip | IP address allowed for SSH          | `192.168.1.1/32` |
 | TF_VAR_snapshot_id    | RDS snapshot ID (optional)          | `snap-0123456789abcdef0` |
