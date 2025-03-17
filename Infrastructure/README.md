@@ -8,6 +8,7 @@ an Application Load Balancer for traffic distribution, and an S3 bucket for stor
 The infrastructure is designed for high availability, scalability, and security.
 
 ## Project Diagrams
+![Resources_v2](https://github.com/user-attachments/assets/379a8a3a-9270-4ce2-bc57-aed5c9747dd2)
 
 ![Recources](https://github.com/user-attachments/assets/26ab4fdc-c449-4e68-9ef3-a16afaf22977)
 
