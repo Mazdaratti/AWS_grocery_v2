@@ -29,9 +29,16 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
+      # Debugging step: Check directory structure
+      - name: Debug Directory Structure
+        run: |
+          echo "Current directory structure:"
+          ls -R ${{ github.workspace }}
+
+      # Initialize Terraform
       - name: Initialize Terraform
         run: terraform init
-        working-directory: infrastructure
+        working-directory: ${{ github.workspace }}/infrastructure
 
       - name: Set Terraform Variables
         run: |
@@ -54,7 +61,7 @@ jobs:
             -target=module.iam_ec2 \
             -target=module.iam_lambda \
             || exit 1
-        working-directory: infrastructure
+        working-directory: ${{ github.workspace }}/infrastructure
 
       - name: Retrieve Terraform Outputs (Phase 1)
         run: |
@@ -96,4 +103,4 @@ jobs:
       - name: Apply Terraform (Phase 2)
         run: |
           terraform apply -auto-approve || exit 1
-        working-directory: infrastructure
+        working-directory: ${{ github.workspace }}/infrastructure
