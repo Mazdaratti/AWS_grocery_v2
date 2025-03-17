@@ -52,7 +52,7 @@ variable "rds_port" {
   default     = 5432
 }
 
-variable "iam_role_name" {
+variable "iam_ec2_role_name" {
   description = "The name of the IAM role for EC2"
   type        = string
   default     = "EC2Role"
@@ -73,7 +73,7 @@ variable "launch_template_name" {
 variable "ami_id" {
   description = "AMI ID for EC2 instances."
   type        = string
-  default     = "ami-06ee6255945a96aba" # Set you custom AMI ID in terraform.tfvar
+  default     = "ami-0b74f796d330ab49c"
 }
 
 variable "key_name" {
@@ -126,13 +126,13 @@ variable "min_size" {
 variable "ec2_name" {
   description = "Tag name for instances"
   type        = string
-  default     = "ec2"
+  default     = "grocery-ec2"
 }
 
 variable "alb_name" {
   description = "Name of the Application Load Balancer"
   type        = string
-  default     = "alb"
+  default     = "grocery-alb"
 }
 
 variable "target_group_name" {
@@ -165,16 +165,28 @@ variable "db_username" {
   default     ="grocery_user"
 }
 
+variable "db_name" {
+  description = "Database name"
+  type        = string
+  default     ="grocerymate_db"
+}
+
 variable "db_password" {
   description = "Database password"
   type        = string
   sensitive   = true
 }
 
+variable "db_identifier" {
+  description = "The name of the RDS instance"
+  type        = string
+  default     ="grocery-db"
+}
+
 variable "bucket_name" {
   description = "The name of the S3 bucket"
   type        = string
-  default     = "aws-grocery-s3" # Be sure to set unique name!!!
+  default     = "aws-grocery-s3-v1" # Be sure to set unique name!!!
 }
 
 variable "versioning_status" {
@@ -255,8 +267,32 @@ variable "db_dump_path" {
   default     = "../backend/app/sqlite_dump_clean.sql"
 }
 
-variable "lambda_role_name" {
+variable "layer_prefix" {
+  description = "Prefix for database dump file"
+  type        = string
+  default     = "lambda_layers/"
+}
+
+variable "layer_filename" {
+  description = "Filename for database dump"
+  type        = string
+  default     = "boto3-psycopg2-layer.zip"
+}
+
+variable "layer_path" {
+  description = "Local path to SQLite dump file"
+  type        = string
+  default     = "lambda_layers/boto3-psycopg2-layer.zip"
+}
+
+variable "lambda_zip_file" {
+  description = "The path to the Lambda function deployment package"
+  type        = string
+  default     = "lambda_data/lambda_function.zip"  # Default value, can be overridden
+}
+
+variable "iam_lambda_role_name" {
   description = "IAM role name for Lambda"
   type        = string
-  default     = "lambda-db-loader-role"
+  default     = "LambdaRole"
 }
