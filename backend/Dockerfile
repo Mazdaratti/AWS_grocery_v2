@@ -5,15 +5,13 @@ FROM python:3.9
 WORKDIR /app
 
 # Copy the application files into the container
-COPY .. .
+COPY . .
 
 # Ensure the .env file is copied
 COPY .env .env
 
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
-
-EXPOSE 5000
 
 # Run the application
 CMD ["python", "run.py"]
