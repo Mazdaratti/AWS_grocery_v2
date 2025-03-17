@@ -222,7 +222,7 @@ This infrastructure is modularized for reusability and maintainability:
 - Outputs security group **IDs** for use in other modules.
 
 ### 10. `vpc`
-- Provisions the **VPC**, **Subnets**, **Route Tables**,**Internet Gateway**, and **VPC Endpoint Gateway**.
+- Provisions the **VPC**, **Subnets**, **Route Tables**, **Internet Gateway**, and **VPC Endpoint Gateway**.
 - Outputs **VPC ID**, **Public Subnet IDs**, and **Private Subnet IDs**.
 
 ## Conclusion
