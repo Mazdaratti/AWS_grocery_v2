@@ -1,5 +1,14 @@
 resource "aws_s3_bucket" "grocery_s3" {
   bucket = var.bucket_name
+  force_destroy = true
+}
+
+# Enable S3 to Send Events to EventBridge
+resource "aws_s3_bucket_notification" "s3_to_eventbridge" {
+  bucket = aws_s3_bucket.grocery_s3.id
+
+  # Enable EventBridge notifications
+  eventbridge = true
 }
 
 resource "aws_s3_bucket_versioning" "grocery_s3_versioning" {
@@ -40,37 +49,54 @@ resource "aws_s3_bucket_policy" "grocery_s3_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      # Allow EC2 to access specific folders in S3
       {
         Sid       = "AllowEC2Access"
         Effect    = "Allow"
         Principal = {
-          AWS = var.iam_role_arn # Allow the EC2 role
+          AWS = var.ec2_iam_role_arn # Allow the EC2 role
+        }
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = aws_s3_bucket.grocery_s3.arn
+      },
+      {
+        Sid       = "AllowEC2ObjectAccess"
+        Effect    = "Allow"
+        Principal = {
+          AWS = var.ec2_iam_role_arn # Allow the EC2 role
         }
         Action = [
           "s3:GetObject",
           "s3:PutObject",
-          "s3:DeleteObject",
-          "s3:ListBucket"
+          "s3:DeleteObject"
         ]
-        Resource = [
-          "${aws_s3_bucket.grocery_s3.arn}/${var.avatar_prefix}*",
-          aws_s3_bucket.grocery_s3.arn
-        ]
+        Resource = "${aws_s3_bucket.grocery_s3.arn}/${var.avatar_prefix}*"
       },
+
+      # Allow Lambda to access specific folders in S3
       {
         Sid       = "AllowLambdaAccess"
         Effect    = "Allow"
         Principal = {
-          AWS = var.lambda_role_arn # Allow the Lambda function role
+          AWS = var.lambda_iam_role_arn # Allow the Lambda function role
         }
         Action = [
-          "s3:GetObject",
           "s3:ListBucket"
         ]
-        Resource = [
-          "${aws_s3_bucket.grocery_s3.arn}/${var.db_dump_prefix}${var.db_dump_filename}",
-          aws_s3_bucket.grocery_s3.arn
+        Resource = aws_s3_bucket.grocery_s3.arn
+      },
+      {
+        Sid       = "AllowLambdaObjectAccess"
+        Effect    = "Allow"
+        Principal = {
+          AWS = var.lambda_iam_role_arn # Allow the Lambda function role
+        }
+        Action = [
+          "s3:GetObject"
         ]
+        Resource = "${aws_s3_bucket.grocery_s3.arn}/${var.db_dump_prefix}*"
       }
     ]
   })
@@ -88,4 +114,10 @@ resource "aws_s3_object" "db_dump" {
   source                 = var.db_dump_path
   # Optional: Enable Server-Side Encryption
   server_side_encryption = "AES256"
+}
+
+resource "aws_s3_object" "layer_image" {
+  bucket = aws_s3_bucket.grocery_s3.id
+  key    = "${var.layer_prefix}${var.layer_filename}"
+  source = var.layer_path
 }
