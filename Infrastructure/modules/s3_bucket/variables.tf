@@ -38,12 +38,12 @@ variable "restrict_public_buckets" {
   type        = bool
 }
 
-variable "iam_role_arn" {
+variable "ec2_iam_role_arn" {
   description = "The ARN of the IAM role for the EC2 instance"
   type        = string
 }
 
-variable "lambda_role_arn" {
+variable "lambda_iam_role_arn" {
   description = "IAM role ARN for Lambda function"
   type        = string
 }
@@ -69,11 +69,26 @@ variable "db_dump_prefix" {
 }
 
 variable "db_dump_filename" {
-  description = "Filename of the SQLite database dump"
+  description = "The name of the SQLite database dump file"
   type        = string
 }
 
 variable "db_dump_path" {
   description = "Local path to the database dump file"
+  type        = string
+}
+
+variable "layer_prefix" {
+  description = "The prefix for the layers storage path"
+  type        = string
+}
+
+variable "layer_path" {
+  description = "Local path to the layer image file"
+  type        = string
+}
+
+variable "layer_filename" {
+  description = "The name of the layer image file"
   type        = string
 }
