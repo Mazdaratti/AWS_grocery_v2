@@ -1,11 +1,6 @@
-output "ecr_repository_url_frontend" {
-  value       = aws_ecr_repository.repos["frontend"].repository_url
-  description = "URL of the frontend ECR repository."
-}
-
-output "ecr_repository_url_backend" {
-  value       = aws_ecr_repository.repos["backend"].repository_url
-  description = "URL of the backend ECR repository."
+output "ecr_repository_url" {
+  value       = aws_ecr_repository.repos.repository_url
+  description = "URL of the ECR repository."
 }
 
 output "vpc_id" {
@@ -48,19 +43,29 @@ output "rds_security_group_id" {
   description = "The ID of the RDS security group."
 }
 
-output "iam_role_name" {
-  value       = module.iam_role.iam_role_name
+output "iam_ec2_role_name" {
+  value       = module.iam_ec2.ec2_iam_role_name
   description = "The name of the IAM role."
 }
 
-output "iam_instance_profile_name" {
-  value       = module.iam_role.iam_instance_profile_name
-  description = "The name of the IAM instance profile."
+output "ec2_iam_role_arn" {
+  value       = module.iam_ec2.ec2_iam_role_arn
+  description = "The ARN of the IAM role."
 }
 
-output "iam_role_arn" {
-  value       = module.iam_role.iam_role_arn
-  description = "The ARN of the IAM role."
+output "lambda_iam_role_name" {
+  value       = module.iam_lambda.lambda_iam_role_name
+  description = "The name of the IAM role."
+}
+
+output "lambda_iam_role_arn" {
+  description = "The ARN of the IAM role for Lambda"
+  value       = module.iam_lambda.lambda_iam_role_arn
+}
+
+output "iam_instance_profile_name" {
+  value       = module.iam_ec2.iam_instance_profile_name
+  description = "The name of the IAM instance profile."
 }
 
 output "launch_template_id" {
@@ -93,37 +98,58 @@ output "alb_dns_name" {
   description = "The DNS name of the Application Load Balancer."
 }
 
-output "db_instance_endpoint" {
+output "rds_endpoint" {
   value       = module.rds.rds_endpoint
   description = "The endpoint of the RDS instance."
 }
 
+output "rds_host" {
+  description = "The endpoint of the RDS instance"
+  value       = module.rds.rds_host
+}
+
 output "rds_id" {
-  value       = module.rds.rds_id
   description = "The ID of the RDS DB instance."
+  value       = module.rds.rds_id
 }
 
-output "lambda_role_arn" {
-  description = "IAM Role ARN for Lambda"
-  value       = module.lambda.lambda_role_arn
+output "rds_arn" {
+  description = "The ARN of the RDS instance"
+  value       = module.rds.rds_arn
 }
 
-output "s3_bucket_name" {
-  value       = module.s3_bucket.s3_bucket_name
+output "rds_az" {
+  description = "The Availability Zone of the RDS instance"
+  value       = module.rds.rds_az
+}
+
+output "lambda_function_name" {
+  description = "The name of the Lambda function."
+  value       = module.lambda.lambda_function_name
+}
+
+output "lambda_function_arn" {
+  description = "The ARN of the Lambda function."
+  value       = module.lambda.lambda_function_arn
+}
+
+output "sfn_arn" {
+  description = "The ARN of the Step Functions state machine."
+  value       = module.lambda.sfn_arn
+}
+
+output "bucket_name" {
+  value       = module.s3_bucket.bucket_name
   description = "The name of the S3 bucket"
 }
 
-output "s3_bucket_id" {
-  value       = module.s3_bucket.s3_bucket_id
+output "bucket_id" {
+  value       = module.s3_bucket.bucket_id
   description = "The ID of the created S3 bucket."
 }
 
-output "s3_bucket_arn" {
-  value       = module.s3_bucket.s3_bucket_arn
+output "bucket_arn" {
+  value       = module.s3_bucket.bucket_arn
   description = "The ARN of the created S3 bucket."
 }
 
-#output "log_group_name" {
-  #description = "Name of the CloudWatch Log Group"
-  #value       = module.cloudwatch_logging.log_group_name
-#}
