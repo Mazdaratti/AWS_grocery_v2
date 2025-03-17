@@ -24,6 +24,7 @@ jobs:
           #aws-secret-access-key: ${{ secrets.TF_VAR_aws_secret_access_key }}
           #aws-region: ${{ secrets.TF_VAR_aws_region }}
           role-to-assume: ${{ secrets.arn_github_role }} # Required for OIDC
+          role-session-name: GitHubActionsSession
           aws-region: ${{ secrets.TF_VAR_aws_region }}
 
       - name: Setup Terraform
