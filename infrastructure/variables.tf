@@ -4,11 +4,6 @@ variable "region" {
   default     = "eu-central-1"
 }
 
-variable "role_arn" {
-  description = "The ARN of the IAM role to assume for AWS authentication"
-  type        = string
-}
-
 variable "vpc_name" {
   description = "Name of the VPC"
   type        = string
