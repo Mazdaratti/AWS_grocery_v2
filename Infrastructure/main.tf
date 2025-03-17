@@ -5,12 +5,13 @@ provider "aws" {
 
 # ECR Repositories
 resource "aws_ecr_repository" "repos" {
-  for_each = toset(["frontend", "backend", "app"])
+  for_each = toset(["app"])
   name     = "aws_grocery-${each.key}"
 }
 
 module "vpc" {
   source               = "./modules/vpc"
+  region               = var.region
   vpc_cidr             = "10.0.0.0/16"
   vpc_name             = "grocery-vpc"
   public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
@@ -27,22 +28,35 @@ module "security_groups" {
   rds_port          = 5432
 }
 
-module "iam_role" {
-  source                    = "./modules/iam_role"
-  iam_role_name             = "EC2Role"
+module "iam_ec2" {
+  source                    = "./modules/iam_ec2"
+  iam_ec2_role_name             = "EC2Role"
   iam_instance_profile_name = "EC2Profile"
+  bucket_name               = var.bucket_name
+  folder_path               = var.avatar_prefix
+}
+
+module "iam_lambda" {
+  source                    = "./modules/iam_lambda"
+  iam_lambda_role_name      = "LambdaRole"
+  bucket_name               = var.bucket_name
+  db_dump_s3_key            = local.db_dump_s3_key
+  rds_arn                   = module.rds.rds_arn
 }
 
 module "ec2_launch_template" {
   source                    = "./modules/ec2_launch_template"
   launch_template_name      = "grocery-launch-template"
-  ami_id                    = var.ami_id # Set your custom AMI ID in terraform.tfvars
+  ami_id                    = var.ami_id
   instance_type             = "t2.micro"
   key_name                  = var.key_name # Set your Key Name in terraform.tfvars
-  iam_instance_profile_name = module.iam_role.iam_instance_profile_name
+  iam_instance_profile_name = module.iam_ec2.iam_instance_profile_name
   security_group_id         = module.security_groups.ec2_security_group_id
   volume_size               = 20
   volume_type               = "gp3"
+  region                    = var.region
+  ecr_repository_url        = aws_ecr_repository.repos["app"].repository_url
+  image_tag                 = "latest"
 }
 
 module "asg" {
@@ -70,7 +84,7 @@ module "alb" {
 
 module "rds" {
   source                 = "./modules/rds"
-  identifier             = "grocery-db"
+  db_identifier          = "grocery-db"
   snapshot_id            = var.snapshot_id # Set the value of your snapshot ID in terraform.tfvars
   instance_class         = "db.t3.micro"
   allocated_storage      = 20
@@ -88,14 +102,30 @@ module "rds" {
   # Database credentials (From terraform.tfvars)
   db_username = var.db_username
   db_password = var.db_password
-  db_name     = "grocerymate"
+  db_name     = var.db_name
 }
 
 module "lambda" {
-  source           = "./modules/lambda"
-  lambda_role_name = "lambda-db-loader-role"
-  s3_bucket_arn    = module.s3_bucket.s3_bucket_arn
-  db_dump_s3_key   = module.s3_bucket.db_dump_s3_key
+  source = "./modules/lambda"
+
+  iam_lambda_role_arn       = module.iam_lambda.lambda_iam_role_arn
+  rds_host                  = module.rds.rds_host
+  rds_port                  = var.rds_port
+  db_name                   = var.db_name
+  db_username               = var.db_username
+  db_identifier             = var.db_identifier
+  rds_password              = var.db_password
+  bucket_name               = var.bucket_name
+  db_dump_s3_key            = local.db_dump_s3_key
+  lambda_layer_s3_key       = local.lambda_layer_s3_key
+  region                    = var.region
+  rds_arn                   = module.rds.rds_arn
+  lambda_security_group_id  = module.security_groups.lambda_security_group_id
+  db_subnet_ids             = module.vpc.db_subnet_ids
+  private_subnet_azs        = module.vpc.private_subnet_azs
+  private_subnet_ids        = module.vpc.private_subnet_ids
+  rds_az                    = module.rds.rds_az
+  lambda_zip_file           = "lambda_data/lambda_function.zip"
 }
 
 module "s3_bucket" {
@@ -108,17 +138,16 @@ module "s3_bucket" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
-  iam_role_arn            = module.iam_role.iam_role_arn
+  ec2_iam_role_arn        = module.iam_ec2.ec2_iam_role_arn
   avatar_prefix           = "avatars/"
   avatar_filename         = "user_default.png"
   avatar_path             = "../backend/avatar/user_default.png"
-  lambda_role_arn         = module.lambda.lambda_role_arn
-  db_dump_prefix          = "db_backup/"
+  lambda_iam_role_arn     = module.iam_lambda.lambda_iam_role_arn
+  db_dump_prefix          = "db_backups/"
   db_dump_filename        = "sqlite_dump_clean.sql"
   db_dump_path            = "../backend/app/sqlite_dump_clean.sql"
+  layer_prefix          = "lambda_layers/"
+  layer_filename        = "boto3-psycopg2-layer.zip"
+  layer_path            = "lambda_data/boto3-psycopg2-layer.zip"
 }
 
-#module "cloudwatch_logging" {
-  #source        = "./modules/cloudwatch_logging"
-  #ec2_role_name = module.iam_role.iam_role_name
-#}
