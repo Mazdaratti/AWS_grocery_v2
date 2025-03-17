@@ -470,7 +470,7 @@ A: Add new modules or modify existing ones in the `modules` directory.
 
 ---
 
-## Creating the AWS Lambda Layer for Boto3 and Psycopg2
+## 🏗️ Creating the AWS Lambda Layer for Boto3 and Psycopg2
 
 To ensure the AWS Lambda function has the required dependencies (`boto3` and `psycopg2`), a Lambda layer is built using Docker. This approach ensures compatibility with AWS Lambda’s execution environment.
 
