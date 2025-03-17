@@ -139,7 +139,8 @@ The Terraform configuration is modularized as follows:
   - **Detects new database dump uploads** and triggers Step Functions.
   
 #### **Workflow Diagram**  
-link to diagramm
+
+![DB_populator Workflow Diagram](https://github.com/user-attachments/assets/2d925569-f26d-4e48-ac6e-60f37f90b35c)
 
 #### **Workflow Description**
 1. **EventBridge Rules**:
