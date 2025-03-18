@@ -465,7 +465,7 @@ A: Add new modules or modify existing ones in the `modules` directory.
 
 ## 🚀 Future Enhancements
 
-- ✅Implement **CI/CD pipelines** for automated deployments.
+- Implement **CI/CD pipelines** for automated deployments.
 - ✅Integrate **AWS Lambda** for migration of local database to rds.
 - Implement **Terraform Remote Backend**
 
