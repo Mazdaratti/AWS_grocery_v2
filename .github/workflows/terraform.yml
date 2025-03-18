@@ -22,6 +22,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.TF_VAR_aws_access_key_id }}
           aws-secret-access-key: ${{ secrets.TF_VAR_aws_secret_access_key }}
+          aws-session-token: ${{ secrets.aws_session_token }}
           #role-to-assume: ${{ secrets.arn_github_role }} # Required for OIDC
           #role-session-name: GitHubActionsSession
           aws-region: ${{ secrets.TF_VAR_aws_region }}
@@ -33,7 +34,7 @@ jobs:
         run: ls -R infrastructure
 
       - name: Initialize Terraform
-        run: terraform init 
+        run: terraform init
         working-directory: infrastructure
 
       - name: Validate Terraform Configuration
