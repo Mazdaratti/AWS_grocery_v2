@@ -466,7 +466,7 @@ Replace your-github-org and your-github-repo with your actual GitHub organizatio
 | TF_VAR_region         | AWS region                          | `eu-central-1`           |
 | TF_VAR_db_user        | RDS database username               | `admin`                  |
 | TF_VAR_db_password    | RDS database password               | `SecurePassword123!`     |
-| TF_VAR_db_name        | RDS database name                   | `grocery_db`             |
+| TF_VAR_db_name        | RDS database name                   | `grocery-db`             |
 | TF_VAR_bucket_name    | S3 bucket name (unique!!!)          | `my-grocery-bucket-v5`   |
 | TF_VAR_ssh_key_name   | SSH key pair name                   | `grocery-key`            |
 | TF_VAR_ami_id         | AMI ID for EC2 instances (optional) | `ami-06ee6255945a96aba`  |
