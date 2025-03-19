@@ -533,10 +533,10 @@ To clean up all resources created by Terraform:
 ### Step 12: How to deactivate GitHub Actions Workflow
 
 To deactivate the **GitHub Actions workflow** and prevent it from running automatically:
-    - Go to your GitHub repository.
-    - Navigate to **Settings** > **Actions** > **General**.
-    - Under **Actions permissions**, select **Disable actions** for this repository.
-    - Click **Save** to deactivate the workflow.
+  - Go to your GitHub repository.
+  - Navigate to **Settings** > **Actions** > **General**.
+  - Under **Actions permissions**, select **Disable actions** for this repository.
+  - Click **Save** to deactivate the workflow.
 ---
 ## Conclusion
 
