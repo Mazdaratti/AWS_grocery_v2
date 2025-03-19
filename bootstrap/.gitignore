@@ -1,0 +1,26 @@
+# Terraform state and backup files
+*.tfstate
+*.tfstate.backup
+*.tfstate.*
+backend.tf
+
+# Terraform cache & lock files
+.terraform/
+.terraform.lock.hcl
+
+# Sensitive variable files
+terraform.tfvars
+*.auto.tfvars
+
+# Ignore personal credentials
+*.pem
+*.key
+id_rsa*
+id_ecdsa*
+id_ed25519*
+credentials.json
+secrets/
+
+# Ignore logs and debug files
+*.log
+crash.log
