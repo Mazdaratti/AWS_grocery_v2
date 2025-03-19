@@ -76,6 +76,9 @@ The infrastructure is designed for **high availability, scalability, and securit
 The Terraform configuration is modularized as follows:
 
 ```
+/bootstrap
+│── main.tf
+│── variables.tf
 /infrastructure
 │── /modules
 │   ├── alb
@@ -93,6 +96,7 @@ The Terraform configuration is modularized as follows:
 │── outputs.tf
 │── terraform.tfvars
 │── lambda_data
+│── generate_backend.py
 ```
 
 ## 🏢 Infrastructure Components
@@ -301,18 +305,53 @@ This approach ensures **proper dependency management**, avoiding race conditions
 
 ###  **Workflow Steps**
 
-1. **Checkout Repository**
-2. **Configure AWS Credentials**
-3. **Setup Terraform**
-4. **Initialize Terraform**
-5. **Set Terraform Variables**
-6. **Apply Terraform (Phase 1)**
-7. **Retrieve Terraform Outputs**
-8. **Generate .env File**
-9. **Build Docker Image**
-10. **Tag and Push Docker Image**
-11. **Delete .env File**
-12. **Apply Terraform (Phase 2)**
+1. **Checkout Repository**  
+    - Uses `actions/checkout@v4` to clone the repository.
+
+2. **Configure AWS Credentials**  
+    - Uses `aws-actions/configure-aws-credentials@v2` with OIDC authentication.
+
+3. **Generate `backend.tf` Dynamically**  
+    - Creates `backend.tf` with S3 and DynamoDB configurations for Terraform state management.
+
+4. **Setup Terraform**  
+    - Uses `hashicorp/setup-terraform@v2` to install Terraform.
+
+5. **List Files for Debugging**  
+    - Runs `ls -R infrastructure` to verify file structure before initialization.
+
+6. **Initialize Terraform**  
+    - Runs `terraform init` in the `infrastructure` directory.
+
+7. **Validate Terraform Configuration**  
+    - Runs `terraform validate` to check for syntax errors.
+
+8. **Set Terraform Variables**  
+    - Exports environment variables from GitHub Secrets for Terraform.
+
+9. **Apply Terraform (Phase 1)**  
+    - Applies Terraform to provision foundational AWS resources like VPC, Security Groups, RDS, S3, IAM roles, and ECR.
+
+10. **Retrieve Terraform Outputs**  
+    - Extracts values such as `rds_host` and `ecr_repository_url` and stores them as environment variables.
+
+11. **Generate .env File**  
+    - Creates a `.env` file for the backend with required database and S3 configurations.
+
+12. **Build Docker Image**  
+    - Runs `docker build` to create the backend Docker image.
+
+13. **Tag and Push Docker Image to ECR**  
+    - Logs into ECR, tags the Docker image, and pushes it to AWS ECR.
+
+14. **Delete .env File**  
+    - Removes the `.env` file to prevent credential exposure.
+
+15. **Clean Up Docker Images**  
+    - Removes local Docker images to free up space.
+
+16. **Apply Terraform (Phase 2)**  
+    - Applies remaining Terraform changes after Docker image deployment.
 
 ### **Triggering the Workflow**
 The workflow is automatically triggered on pushes to the `main` branch.
@@ -366,49 +405,99 @@ Follow these steps to clone the repository and deploy the application:
 git clone https://github.com/Mazdaratti/AWS_grocery_v2.git
 cd AWS_grocery_v2
 ```
+### Step 6: Set Bootstrap Variables
+Before running the generate_backend.py script, you need to set the variables for the bootstrap process. 
+These variables are defined in the bootstrap/variables.tf file.
+1. Navigate to the bootstrap directory:
 
-###  Step 6: 🔑 Set Variables in GitHub Secrets
+    ```bash
+    cd bootstrap
+    ```
+2. Create a terraform.tfvars file to set the variables:
+    ```bash
+    touch terraform.tfvars
+    ```
+3. Add the following variables to the terraform.tfvars file:
+
+## **Bootstrap Configuration Variables**
+
+```hcl
+region              = "eu-central-1"          # Replace with your region
+github_org          = "your-github-org"       # Replace with your GitHub organization or username
+github_repo         = "your-github-repo"      # Replace with your GitHub repository name
+s3_bucket_name      = "grocery-terraform-state-v5"
+dynamodb_table_name = "terraform-lock"
+```
+Replace your-github-org and your-github-repo with your actual GitHub organization and repository name.
+
+### Step 7: Bootstrap the Backend Locally
+1. Navigate to the **infrastructure** directory:
+    ```bash
+    cd ../infrastructure
+    ```
+2. Run the generate_backend.py script to:
+   - Bootstrap the backend resources (**S3 bucket, DynamoDB table, GitHubActionsRole**).
+   - Generate the **backend.tf** file for Terraform state management.
+    ```bash
+    python generate_backend.py
+    ```
+3. The script will:
+   - Run **terraform init** and **terraform apply** in the **bootstrap directory** to create the resources.
+   - Capture the outputs:
+      - **tf_state_bucket_name**: The name of the S3 bucket for Terraform state.
+      - **region**: The AWS region.
+      - **tf_state_lock_table**: The name of the DynamoDB table for state locking.
+      - **arn_github_actions_role**: The ARN of the GitHubActionsRole.
+   - Generate the **backend.tf** file in the **infrastructure** directory.
+
+###  Step 8: 🔑 Set Variables in GitHub Secrets
 1. Go to your GitHub repository.
 2. Navigate to **Settings > Secrets and variables > Actions**.
 3. Click **New repository secret** and add the following secrets:
 
 #### AWS Authentication Variables
-| Secret Name           | Description           | Example Value         |
-|-----------------------|-----------------------|-----------------------|
-| aws_access_key_id     | AWS Access Key ID     | `AKIAXXXXXXXXXXXXXXXX` |
-| aws_secret_access_key | AWS Secret Access Key | `XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` |
-| aws_session_token     | AWS Session Token     | `XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` |
+| Secret Name             | Description                  | Example Value                                    |
+|-------------------------|------------------------------|--------------------------------------------------|
+| arn_github_actions_role | ARN of the GitHubActionsRole | arn:aws:iam::123456789012:role/GitHubActionsRole |
 
 #### Terraform Variables
-| Secret Name           | Description                         | Example Value         |
-|-----------------------|-------------------------------------|-----------------------|
-| TF_VAR_region         | AWS region                          | `eu-central-1` |
-| TF_VAR_db_user        | RDS database username               | `admin` |
-| TF_VAR_db_password    | RDS database password               | `SecurePassword123!` |
-| TF_VAR_db_name        | RDS database name                   | `grocery_db` |
-| TF_VAR_bucket_name    | S3 bucket name (unique!!!)          | `my-grocery-bucket-v5` |
-| TF_VAR_ssh_key_name   | SSH key pair name                   | `grocery-key` |
-| TF_VAR_ami_id         | AMI ID for EC2 instances (optional) | `ami-06ee6255945a96aba` |
-| TF_VAR_allowed_ssh_ip | IP address allowed for SSH          | `192.168.1.1/32` |
+| Secret Name           | Description                         | Example Value            |
+|-----------------------|-------------------------------------|--------------------------|
+| TF_VAR_region         | AWS region                          | `eu-central-1`           |
+| TF_VAR_db_user        | RDS database username               | `admin`                  |
+| TF_VAR_db_password    | RDS database password               | `SecurePassword123!`     |
+| TF_VAR_db_name        | RDS database name                   | `grocery_db`             |
+| TF_VAR_bucket_name    | S3 bucket name (unique!!!)          | `my-grocery-bucket-v5`   |
+| TF_VAR_ssh_key_name   | SSH key pair name                   | `grocery-key`            |
+| TF_VAR_ami_id         | AMI ID for EC2 instances (optional) | `ami-06ee6255945a96aba`  |
+| TF_VAR_allowed_ssh_ip | IP address allowed for SSH          | `192.168.1.1/32`         |
 | TF_VAR_snapshot_id    | RDS snapshot ID (optional)          | `snap-0123456789abcdef0` |
 
-#### Environment Variables
-| Secret Name         | Description                   | Example Value         |
-|--------------------|-----------------------------|-----------------------|
-| JWT_SECRET_KEY    | Secret key for JWT token generation | `XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`|
+#### Backend Configuration Variables
+| Secret Name          | Description                                  | Example Value               |
+|----------------------|----------------------------------------------|-----------------------------|
+| TF_STATE_BUCKET_NAME | Name of the S3 bucket for Terraform state    | 'my-terraform-state-bucket' |
+| TF_STATE_LOCK_TABLE  | Name of the DynamoDB table for state locking | 'terraform-lock'            |
 
-### Step 7: Deploy the Infrastructure
+#### Environment Variables
+| Secret Name    | Description                         | Example Value                    |
+|----------------|-------------------------------------|----------------------------------|
+| JWT_SECRET_KEY | Secret key for JWT token generation | `XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` |
+
+### Step 9: Deploy the Infrastructure
 
 1. Push your changes to the main branch to trigger the GitHub Actions workflow.
 2. The workflow will:
-
+    - Dynamically generate the backend.tf file in the infrastructure directory 
+      using the values from GitHub Secrets.
+    - Initialize Terraform with the remote backend.
     - Create the VPC, subnets, and security groups.
     - Provision the RDS instance and S3 bucket.
     - Build and push the Docker image to ECR.
     - Launch EC2 instances using the Auto Scaling Group (ASG).
     - Configure the Application Load Balancer (ALB) and attach the EC2 instances.
 
-### Step 8: Verify the Deployment
+### Step 10: Verify the Deployment
 
 1. After the workflow completes, check the outputs in the GitHub Actions logs.
 2. Use the ALB DNS Name output to access the application in your browser.
@@ -416,11 +505,43 @@ cd AWS_grocery_v2
 
     ```bash
     ssh -i path/to/your-key.pem ec2-user@<EC2_PUBLIC_IP>
+
+### Step 11: How to destroy All Resources
+
+To clean up all resources created by Terraform:  
+
+1. Navigate to the Infrastructure Directory
+    ```bash
+    cd infrastructure
     ```
+2. Run the following command to destroy the infrastructure:
+    ```bash
+    terraform destroy
+    ```
+    - Confirm the destruction by typing yes when prompted.
+
+3. Navigate to the Bootstrap Directory
+    ```bash
+    cd ../bootstrap
+    ```
+4. Run the following command to destroy the bootstrap resources:
+    ```bash
+    terraform destroy
+    ```
+   - Confirm the destruction by typing yes when prompted.
+
+### Step 12: How to deactivate GitHub Actions Workflow
+
+To deactivate the **GitHub Actions workflow** and prevent it from running automatically:
+    - Go to your GitHub repository.
+    - Navigate to **Settings** > **Actions** > **General**.
+    - Under **Actions permissions**, select **Disable actions** for this repository.
+    - Click **Save** to deactivate the workflow.
 ---
 ## Conclusion
 
-This GitHub Actions driven fully automated deployment of the Grocery App on AWS ensures continuous deployment with minimal manual intervention. 
+This **GitHub Actions** driven, fully automated deployment of the **Grocery App** on **AWS** ensures continuous deployment with minimal manual intervention.
+The use of **OIDC** for authentication eliminates the need for hardcoding AWS credentials, making the deployment more secure.
 The modular structure allows for easy scaling and customization, making it adaptable for future enhancements.
 
 🚀 Happy Deploying!
@@ -462,6 +583,7 @@ A: Add new modules or modify existing ones in the `modules` directory.
 - **ECR**: Elastic Container Registry.
 - **RDS**: Relational Database Service.
 - **IAM**: Identity and Access Management.
+- **OIDC**:OpenID Connect authentication protocol 
 
 ## 🚀 Future Enhancements
 
