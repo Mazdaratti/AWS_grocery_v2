@@ -102,7 +102,7 @@ venv.bak/
 
 # Environments
 ../.env/
-
+.env
 # mypy
 .mypy_cache/
 .dmypy.json

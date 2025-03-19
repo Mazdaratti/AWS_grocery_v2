@@ -2,6 +2,7 @@
 *.tfstate
 *.tfstate.backup
 *.tfstate.*
+backend.tf
 
 # Terraform cache & lock files
 .terraform/
