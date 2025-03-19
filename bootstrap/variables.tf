@@ -5,7 +5,7 @@ variable "region" {
 }
 
 variable "github_org" {
-  description = "GitHub organization or user name"
+  description = "Your GitHub organization or user name"
   type        = string
 }
 
