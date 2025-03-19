@@ -24,7 +24,7 @@ jobs:
           #aws-secret-access-key: ${{ secrets.aws_secret_access_key }}
           #aws-session-token: ${{ secrets.aws_session_token }}
           role-to-assume: ${{ secrets.arn_github_actions_role }} # Required for OIDC
-          aws-region: ${{ secrets.TF_VAR_aws_region }}
+          aws-region: ${{ secrets.TF_VAR_region }}
 
       - name: Generate backend.tf Dynamically
         run: |
