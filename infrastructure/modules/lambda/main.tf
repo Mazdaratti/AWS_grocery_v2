@@ -198,18 +198,22 @@ resource "aws_iam_policy" "sfn_policy" {
           "logs:UpdateLogDelivery",
           "logs:DeleteLogDelivery",
           "logs:ListLogDeliveries",
+          "logs:CreateLogStream",
+          "logs:CreateLogGroup",
           "logs:PutLogEvents",
           "logs:PutResourcePolicy",
           "logs:DescribeResourcePolicies",
           "logs:DescribeLogGroups"
         ]
-        Resource = aws_cloudwatch_log_group.step_function_log_group.arn
+        Resource = [aws_cloudwatch_log_group.step_function_log_group.arn,
+        "${aws_cloudwatch_log_group.step_function_log_group.arn}:*"]
       }
     ]
   })
 }
 
 # Attach Policies to Step Functions Role
+
 resource "aws_iam_role_policy_attachment" "sfn_attach" {
   role       = aws_iam_role.sfn_role.name
   policy_arn = aws_iam_policy.sfn_policy.arn
