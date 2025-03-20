@@ -9,7 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    permissions:  # Required for OIDC authentication
+    permissions: # Required for OIDC authentication
       id-token: write  # Required for OIDC authentication
       contents: read   # Required to checkout the repository
 
@@ -23,12 +23,13 @@ jobs:
           role-to-assume: ${{ secrets.arn_github_actions_role }} # Required for OIDC
           aws-region: ${{ secrets.TF_VAR_region }}
 
+
       - name: Generate backend.tf Dynamically
         run: |
           cat <<EOF > infrastructure/backend.tf
           terraform {
             backend "s3" {
-              bucket         = "${{ secrets.TF_STATE_BUCKET_NAME }}"
+              bucket         = "${{ secrets.TF_STATE_backend_bucket_name }}"
               key            = "terraform_state/statefile.tfstate"
               region         = "${{ secrets.TF_VAR_region }}"
               encrypt        = true
@@ -63,9 +64,43 @@ jobs:
           echo "TF_VAR_region=${{ secrets.TF_VAR_region }}" >> $GITHUB_ENV
           echo "TF_VAR_bucket_name=${{ secrets.bucket_name }}" >> $GITHUB_ENV
 
-      # Phase 1: Provision resources needed for .env and ECR
-      - name: Destroy
+      - name: Apply Terraform
         run: |
-          terraform destroy -auto-approve 
-          || exit 1
+          terraform apply -auto-approve || exit 1
         working-directory: infrastructure
+
+      - name: Retrieve Terraform Outputs
+        run: |
+          echo "POSTGRES_HOST=$(terraform output -raw rds_host)" >> $GITHUB_ENV
+          echo "ECR_REPOSITORY_URL=$(terraform output -raw ecr_repository_url)" >> $GITHUB_ENV
+          echo "ECR_REGISTRY_URL=$(echo $ECR_REPOSITORY_URL | cut -d'/' -f1)" >> $GITHUB_ENV
+
+      - name: Generate .env File
+        run: |
+          echo "JWT_SECRET_KEY=${{ secrets.jwt_secret_key }}" >> backend/.env
+          echo "POSTGRES_USER=${{ secrets.TF_VAR_db_user }}" >> backend/.env
+          echo "POSTGRES_PASSWORD=${{ secrets.TF_VAR_db_password }}" >> backend/.env
+          echo "POSTGRES_DB=${{ secrets.TF_VAR_db_name }}" >> backend/.env
+          echo "POSTGRES_HOST=${{ env.POSTGRES_HOST }}" >> backend/.env
+          echo "POSTGRES_URI=postgresql://${{ secrets.TF_VAR_db_user }}:${{ secrets.TF_VAR_db_password }}@${{ env.POSTGRES_HOST }}:5432/${{ secrets.TF_VAR_db_name }}" >> backend/.env
+          echo "S3_BUCKET_NAME=${{ secrets.TF_VAR_bucket_name }}" >> backend/.env
+          echo "S3_REGION=${{ secrets.TF_VAR_region }}" >> backend/.env
+          echo "USE_S3_STORAGE=true" >> backend/.env
+
+      - name: Build Docker Image
+        run: |
+          cd backend
+          docker build -t my-ecr-repo:latest . || exit 1
+
+      - name: Tag and Push Docker Image to ECR
+        run: |
+          aws ecr get-login-password --region ${{ secrets.TF_VAR_region }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY_URL }}
+          docker tag my-ecr-repo:latest ${{ env.ECR_REPOSITORY_URL }}:latest
+          docker push ${{ env.ECR_REPOSITORY_URL }}:latest
+
+      - name: Delete .env to Prevent Exposure
+        run: rm -f .env  # Ensures it’s gone from GitHub runner
+
+      - name: Clean Up Docker Images
+        run: |
+          docker rmi my-ecr-repo:latest ${{ env.ECR_REPOSITORY_URL }}:latest || true

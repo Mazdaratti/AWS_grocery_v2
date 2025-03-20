@@ -186,7 +186,7 @@ variable "db_identifier" {
 variable "bucket_name" {
   description = "The name of the S3 bucket"
   type        = string
-  default     = "aws-grocery-s3-v1" # Be sure to set unique name!!!
+  default     = "aws-grocery-s3-v5" # Be sure to set unique name!!!
 }
 
 variable "versioning_status" {
