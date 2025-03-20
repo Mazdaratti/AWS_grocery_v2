@@ -8,71 +8,14 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
-    permissions: # Required for OIDC authentication
-      id-token: write  # Required for OIDC authentication
-      contents: read   # Required to checkout the repository
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ secrets.arn_github_actions_role }} # Required for OIDC
-          aws-region: ${{ secrets.TF_VAR_region }}
-
-
-      - name: Generate backend.tf Dynamically
-        run: |
-          cat <<EOF > infrastructure/backend.tf
-          terraform {
-            backend "s3" {
-              bucket         = "${{ secrets.TF_STATE_backend_bucket_name }}"
-              key            = "terraform_state/statefile.tfstate"
-              region         = "${{ secrets.TF_VAR_region }}"
-              encrypt        = true
-              dynamodb_table = "${{ secrets.TF_STATE_LOCK_TABLE }}"
-            }
-          }
-          EOF
-
-          echo "Generated infrastructure/backend.tf"
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-
-      - name: List files for debugging
-        run: ls -R infrastructure
-
-      - name: Initialize Terraform with Dynamic Backend
-        run: terraform init
-        working-directory: infrastructure
-
-      - name: Validate Terraform Configuration
-        run: terraform validate
-        working-directory: infrastructure
-
-      - name: Set Terraform Variables
-        run: |
-          echo "TF_VAR_allowed_ssh_ip=${{ secrets.TF_VAR_allowed_ssh_ip }}" >> $GITHUB_ENV
-          echo "TF_VAR_key_name=${{ secrets.TF_VAR_ssh_key_name }}" >> $GITHUB_ENV
-          echo "TF_VAR_db_user=${{ secrets.TF_VAR_db_user }}" >> $GITHUB_ENV
-          echo "TF_VAR_db_password=${{ secrets.TF_VAR_db_password }}" >> $GITHUB_ENV
-          echo "TF_VAR_db_name=${{ secrets.TF_VAR_db_name }}" >> $GITHUB_ENV
-          echo "TF_VAR_region=${{ secrets.TF_VAR_region }}" >> $GITHUB_ENV
-          echo "TF_VAR_bucket_name=${{ secrets.bucket_name }}" >> $GITHUB_ENV
-
-      - name: Apply Terraform
-        run: |
-          terraform apply -auto-approve || exit 1
-        working-directory: infrastructure
-
       - name: Retrieve Terraform Outputs
         run: |
-          echo "POSTGRES_HOST=$(terraform output -raw rds_host)" >> $GITHUB_ENV
-          echo "ECR_REPOSITORY_URL=$(terraform output -raw ecr_repository_url)" >> $GITHUB_ENV
+          echo "POSTGRES_HOST=grocery-db.cheoasek0kzu.eu-central-1.rds.amazonaws.com" >> $GITHUB_ENV
+          echo "ECR_REPOSITORY_URL=225989349529.dkr.ecr.eu-central-1.amazonaws.com/aws_grocery-app" >> $GITHUB_ENV
           echo "ECR_REGISTRY_URL=$(echo $ECR_REPOSITORY_URL | cut -d'/' -f1)" >> $GITHUB_ENV
 
       - name: Generate .env File
