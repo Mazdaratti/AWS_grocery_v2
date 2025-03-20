@@ -14,7 +14,7 @@ variable "github_repo" {
   type        = string
 }
 
-variable "s3_bucket_name" {
+variable "backend_bucket_name" {
   description = "Name of the S3 bucket for Terraform state"
   type        = string
   default     = "grocery-terraform-state-v5"

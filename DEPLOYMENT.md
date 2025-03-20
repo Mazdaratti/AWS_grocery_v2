@@ -474,10 +474,10 @@ Replace your-github-org and your-github-repo with your actual GitHub organizatio
 | TF_VAR_snapshot_id    | RDS snapshot ID (optional)          | `snap-0123456789abcdef0` |
 
 #### Backend Configuration Variables
-| Secret Name          | Description                                  | Example Value               |
-|----------------------|----------------------------------------------|-----------------------------|
-| TF_STATE_BUCKET_NAME | Name of the S3 bucket for Terraform state    | 'my-terraform-state-bucket' |
-| TF_STATE_LOCK_TABLE  | Name of the DynamoDB table for state locking | 'terraform-lock'            |
+| Secret Name                  | Description                                  | Example Value               |
+|------------------------------|----------------------------------------------|-----------------------------|
+| TF_STATE_BACKEND_BUCKET_NAME | Name of the S3 bucket for Terraform state    | 'my-terraform-state-bucket' |
+| TF_STATE_LOCK_TABLE          | Name of the DynamoDB table for state locking | 'terraform-lock'            |
 
 #### Environment Variables
 | Secret Name    | Description                         | Example Value                    |

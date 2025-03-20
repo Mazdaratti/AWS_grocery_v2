@@ -44,7 +44,7 @@ resource "aws_iam_role_policy_attachment" "github_actions_admin" {
 
 # S3 Bucket for Terraform State
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = var.s3_bucket_name
+  bucket = var.backend_bucket_name
 }
 # S3 bucket versioning for the existing bucket
 resource "aws_s3_bucket_versioning" "terraform_state" {
