@@ -33,7 +33,7 @@ jobs:
         run: |
           echo "POSTGRES_HOST=grocery-db.cheoasek0kzu.eu-central-1.rds.amazonaws.com" >> $GITHUB_ENV
           echo "ECR_REPOSITORY_URL=225989349529.dkr.ecr.eu-central-1.amazonaws.com/aws_grocery-app" >> $GITHUB_ENV
-          echo "ECR_REGISTRY_URL=$(echo $ECR_REPOSITORY_URL | cut -d'/' -f1)" >> $GITHUB_ENV
+          echo "ECR_REGISTRY_URL=225989349529.dkr.ecr.eu-central-1.amazonaws.com" >> $GITHUB_ENV
 
       - name: Generate .env File
         run: |
