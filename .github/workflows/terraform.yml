@@ -99,6 +99,10 @@ jobs:
 
       - name: Generate .env File
         run: |
+          # Clear the .env file before writing new content
+          > backend/.env
+
+          # Append new content to the .env file
           echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> backend/.env
           echo "POSTGRES_USER=${{ secrets.TF_VAR_DB_USER }}" >> backend/.env
           echo "POSTGRES_PASSWORD=${{ secrets.TF_VAR_DB_PASSWORD }}" >> backend/.env
@@ -108,9 +112,10 @@ jobs:
           echo "S3_BUCKET_NAME=${{ secrets.TF_VAR_BUCKET_NAME }}" >> backend/.env
           echo "S3_REGION=${{ secrets.TF_VAR_REGION }}" >> backend/.env
           echo "USE_S3_STORAGE=true" >> backend/.env
-          
+
+          # Debugging: Print the .env file content
           echo "Generated backend/.env:"
-          cat backend/.env  # Debugging step (remove in production)
+          cat backend/.env
 
       - name: Build Docker Image
         run: |
