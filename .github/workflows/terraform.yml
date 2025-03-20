@@ -87,17 +87,22 @@ jobs:
       - name: Retrieve Terraform Outputs
         run: |
           echo "Fetching Terraform outputs..."
-          echo "POSTGRES_HOST=$(terraform output -raw rds_host | awk -F '::' '{print $1}')" >> $GITHUB_ENV
-          echo "ECR_REPOSITORY_URL=$(terraform output -raw ecr_repository_url | awk -F '::' '{print $1}')" >> $GITHUB_ENV
-          echo "ECR_REGISTRY_URL=$(echo $ECR_REPOSITORY_URL | cut -d'/' -f1)" >> $GITHUB_ENV
-        working-directory: infrastructure
-      
 
-      - name: Verify Terraform Outputs
-        run: |
-          echo "POSTGRES_HOST=${{ env.POSTGRES_HOST }}"
-          echo "ECR_REPOSITORY_URL=${{ env.ECR_REPOSITORY_URL }}"
-          echo "ECR_REGISTRY_URL=${{ env.ECR_REGISTRY_URL }}"
+          # Extract outputs and sanitize them
+          POSTGRES_HOST=$(terraform output -raw rds_host | awk -F '::' '{print $1}')
+          ECR_REPOSITORY_URL=$(terraform output -raw ecr_repository_url | awk -F '::' '{print $1}')
+          ECR_REGISTRY_URL=$(echo "$ECR_REPOSITORY_URL" | cut -d'/' -f1)
+
+          # Write outputs to $GITHUB_ENV
+          echo "POSTGRES_HOST=$POSTGRES_HOST" >> $GITHUB_ENV
+          echo "ECR_REPOSITORY_URL=$ECR_REPOSITORY_URL" >> $GITHUB_ENV
+          echo "ECR_REGISTRY_URL=$ECR_REGISTRY_URL" >> $GITHUB_ENV
+
+          # Debugging: Print the values to verify
+          echo "POSTGRES_HOST: $POSTGRES_HOST"
+          echo "ECR_REPOSITORY_URL: $ECR_REPOSITORY_URL"
+          echo "ECR_REGISTRY_URL: $ECR_REGISTRY_URL"
+        working-directory: infrastructure
 
       - name: Generate .env File
         run: |
