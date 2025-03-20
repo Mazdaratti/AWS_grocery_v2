@@ -81,10 +81,10 @@ jobs:
         run: |
           echo "Fetching Terraform outputs..."
 
-          # Extract outputs using JSON
-          POSTGRES_HOST=$(terraform output -json | jq -r '.rds_host.value')
-          ECR_REPOSITORY_URL=$(terraform output -json | jq -r '.ecr_repository_url.value')
-          ECR_REGISTRY_URL=$(echo "$ECR_REPOSITORY_URL" | cut -d'/' -f1)
+          # Extract outputs and sanitize them
+          POSTGRES_HOST=$(terraform output -raw rds_host | tr -d '\n' | xargs)
+          ECR_REPOSITORY_URL=$(terraform output -raw ecr_repository_url | tr -d '\n' | xargs)
+          ECR_REGISTRY_URL=$(echo "$ECR_REPOSITORY_URL" | cut -d'/' -f1 | xargs)
 
           # Write outputs to $GITHUB_ENV
           echo "POSTGRES_HOST=$POSTGRES_HOST" >> $GITHUB_ENV
