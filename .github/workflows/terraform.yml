@@ -80,18 +80,18 @@ jobs:
       - name: Retrieve Terraform Outputs
         run: |
           echo "Fetching Terraform outputs..."
-          terraform output
           echo "POSTGRES_HOST=$(terraform output -raw rds_host)" >> $GITHUB_ENV
           echo "ECR_REPOSITORY_URL=$(terraform output -raw ecr_repository_url)" >> $GITHUB_ENV
-          
+          echo "ECR_REGISTRY_URL=$(echo $ECR_REPOSITORY_URL | cut -d'/' -f1)" >> $GITHUB_ENV
+        working-directory: infrastructure
       
 
       - name: Verify Terraform Outputs
         run: |
           echo "POSTGRES_HOST=${{ env.POSTGRES_HOST }}"
           echo "ECR_REPOSITORY_URL=${{ env.ECR_REPOSITORY_URL }}"
+          echo "ECR_REGISTRY_URL=${{ env.ECR_REGISTRY_URL }}"
           
-
       - name: Generate .env File
         run: |
           echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> backend/.env
