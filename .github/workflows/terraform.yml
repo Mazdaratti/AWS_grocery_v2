@@ -8,7 +8,24 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions: # Required for OIDC authentication
+      id-token: write  # Required for OIDC authentication
+      contents: read   # Required to checkout the repository
+
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          #aws-access-key-id: ${{ secrets.aws_access_key_id }}
+          #aws-secret-access-key: ${{ secrets.aws_secret_access_key }}
+          #aws-session-token: ${{ secrets.aws_session_token }}
+          role-to-assume: ${{ secrets.arn_github_actions_role }} # Required for OIDC
+          role-session-name: GitHubActionsSession
+          aws-region: ${{ secrets.TF_VAR_region }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
