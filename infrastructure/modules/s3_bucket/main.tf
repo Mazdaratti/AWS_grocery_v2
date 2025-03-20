@@ -1,6 +1,6 @@
 resource "aws_s3_bucket" "grocery_s3" {
   bucket = var.bucket_name
-  force_destroy = true
+  force_destroy = false
 }
 
 # Enable S3 to Send Events to EventBridge
