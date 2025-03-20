@@ -83,12 +83,12 @@ jobs:
           echo "rds_host: $(terraform output -raw rds_host)"
           echo "ecr_repository_url: $(terraform output -raw ecr_repository_url)"
         working-directory: infrastructure
-        
+
       - name: Retrieve Terraform Outputs
         run: |
           echo "Fetching Terraform outputs..."
-          echo "POSTGRES_HOST=$(terraform output -raw rds_host)" >> $GITHUB_ENV
-          echo "ECR_REPOSITORY_URL=$(terraform output -raw ecr_repository_url)" >> $GITHUB_ENV
+          echo "POSTGRES_HOST=$(terraform output -raw rds_host | awk -F '::' '{print $1}')" >> $GITHUB_ENV
+          echo "ECR_REPOSITORY_URL=$(terraform output -raw ecr_repository_url | awk -F '::' '{print $1}')" >> $GITHUB_ENV
           echo "ECR_REGISTRY_URL=$(echo $ECR_REPOSITORY_URL | cut -d'/' -f1)" >> $GITHUB_ENV
         working-directory: infrastructure
       
