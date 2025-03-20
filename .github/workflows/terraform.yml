@@ -77,6 +77,13 @@ jobs:
         run: terraform apply -auto-approve tfplan
         working-directory: infrastructure
 
+      - name: Debug Terraform Outputs
+        run: |
+          echo "Debugging Terraform outputs..."
+          echo "rds_host: $(terraform output -raw rds_host)"
+          echo "ecr_repository_url: $(terraform output -raw ecr_repository_url)"
+        working-directory: infrastructure
+        
       - name: Retrieve Terraform Outputs
         run: |
           echo "Fetching Terraform outputs..."
@@ -91,7 +98,7 @@ jobs:
           echo "POSTGRES_HOST=${{ env.POSTGRES_HOST }}"
           echo "ECR_REPOSITORY_URL=${{ env.ECR_REPOSITORY_URL }}"
           echo "ECR_REGISTRY_URL=${{ env.ECR_REGISTRY_URL }}"
-          
+
       - name: Generate .env File
         run: |
           echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> backend/.env
