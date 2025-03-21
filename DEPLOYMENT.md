@@ -577,13 +577,13 @@ A: Add new modules or modify existing ones in the `modules` directory.
 
 ## 📚 Glossary
 
-- **VPC**: Virtual Private Cloud.
-- **ALB**: Application Load Balancer.
-- **ASG**: Auto Scaling Group.
-- **ECR**: Elastic Container Registry.
-- **RDS**: Relational Database Service.
-- **IAM**: Identity and Access Management.
-- **OIDC**:OpenID Connect authentication protocol 
+- **VPC**:  Virtual Private Cloud.
+- **ALB**:  Application Load Balancer.
+- **ASG**:  Auto Scaling Group.
+- **ECR**:  Elastic Container Registry.
+- **RDS**:  Relational Database Service.
+- **IAM**:  Identity and Access Management.
+- **OIDC**: OpenID Connect authentication protocol 
 
 ## 🚀 Future Enhancements
 
@@ -621,10 +621,11 @@ Lambda_layer_docker_project/
 
 The Lambda layer is built using the official Amazon SAM Python 3.12 build container image:
 
-**Base Image:**  
-`public.ecr.aws/sam/build-python3.12:1.135.0-20250310201002-x86_64`
-https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-image-repositories.html
-https://gallery.ecr.aws/sam/build-python3.12
+**Base Image**:
+
+**`public.ecr.aws/sam/build-python3.12:1.135.0-20250310201002-x86_64`**
+    [📜](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-image-repositories.html)
+    [🐳📦](https://gallery.ecr.aws/sam/build-python3.12)
 
 #### **Dockerfile**
 
