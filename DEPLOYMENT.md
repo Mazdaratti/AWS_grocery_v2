@@ -624,8 +624,8 @@ The Lambda layer is built using the official Amazon SAM Python 3.12 build contai
 **Base Image**:
 
 **`public.ecr.aws/sam/build-python3.12:1.135.0-20250310201002-x86_64`**
-    [📜](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-image-repositories.html)
-    [🐳📦](https://gallery.ecr.aws/sam/build-python3.12)
+    [`📜`](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-image-repositories.html)
+    [`🐳📦`](https://gallery.ecr.aws/sam/build-python3.12)
 
 #### **Dockerfile**
 
