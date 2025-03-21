@@ -1,167 +1,694 @@
-# GroceryMate
+# Deployment Guide for AWS Grocery App
 
-## 🏆 GroceryMate E-Commerce Platform
 
-[![Python](https://img.shields.io/badge/Language-Python%2C%20JavaScript-blue)](https://www.python.org/)
-[![OS](https://img.shields.io/badge/OS-Linux%2C%20Windows%2C%20macOS-green)](https://www.kernel.org/)
-[![Database](https://img.shields.io/badge/Database-PostgreSQL-336791)](https://www.postgresql.org/)
-[![GitHub Release](https://img.shields.io/github/v/release/AlejandroRomanIbanez/AWS_grocery)](https://github.com/AlejandroRomanIbanez/AWS_grocery/releases/tag/v2.0.0)
-[![Free](https://img.shields.io/badge/Free_for_Non_Commercial_Use-brightgreen)](#-license)
+## 📖 Table of Contents
 
-⭐ **Star us on GitHub** — it motivates us a lot!
+1. [🏁 Introduction](#-introduction)  
+2. [🏗️ Infrastructure Overview](#-infrastructure-overview)  
+3. [🏛️ Architecture Diagrams](#-architecture-diagrams)  
+4. [🛠️ Terraform Configuration](#-terraform-configuration)  
+5. [🏢 Infrastructure Components](#-infrastructure-components)  
+   - [🌐 Virtual Private Cloud (VPC)](#-virtual-private-cloud-vpc)  
+   - [🔐 Security Groups](#-security-groups)  
+   - [🖥️ Compute Infrastructure (EC2 & Auto Scaling Group)](#-compute-infrastructure-ec2--auto-scaling-group)  
+   - [⚖️ Application Load Balancer (ALB)](#-application-load-balancer-alb)  
+   - [📦 Container Registry (ECR)](#-container-registry-ecr)  
+   - [🗄️ Database (Amazon RDS - PostgreSQL)](#-database-amazon-rds---postgresql)  
+   - [🗂️ Storage (S3 Bucket)](#-storage-s3-bucket)  
+   - [🎭 IAM Roles & Policies](#-iam-roles--policies)  
+   - [🔄 Lambda Function & Step Functions](#-lambda-function--step-functions)  
+6. [🧩 Terraform Modules](#-terraform-modules)  
+7. [🚀 Deployment Guide](#-deployment-guide)  
+   - [🔄 Automated Deployment Workflow](#-automated-deployment-workflow)  
+   - [📜 Workflow Steps](#-workflow-steps)  
+   - [🔑 GitHub Secrets Setup](#-github-secrets-setup)  
+   - [💻 Step-by-Step Deployment Guide](#-step-by-step-deployment-guide)  
+8. [🛠️ Troubleshooting](#-troubleshooting)  
+9. [❓ FAQ](#-faq)  
+10. [📚 Glossary](#-glossary)  
+11. [🔮 Future Enhancements](#-future-enhancements)  
+12. [🏗️ Creating AWS Lambda Layer for Boto3 & Psycopg2](#-creating-aws-lambda-layer-for-boto3--psycopg2)  
+13. [🤝 Contributing](#-contributing)  
+14. [📜 License](#-license)  
+
+---
+## 🏁 Introduction
+
+This project is part of the **Cloud Track** in our Software Engineering bootcamp at Masterschool. 
+The application was originally developed by **Alejandro Román**, our Track Mentor (huge thanks to him!). 
+Our task was to design and deploy its **AWS infrastructure step by step**, implementing each component individually.  
+
+Instead of a manual setup, I took the challenge further by **fully automating the provisioning and deployment** using 
+**Terraform and GitHub Actions**. This ensures a **scalable, repeatable, and error-resistant deployment process**, 
+eliminating the need for manual configurations.  
+
+For details about the **application's features, functionality, and local installation**, refer to the original [`README.md`](APPLICATION.md) by Alejandro.  
+
+This document focuses exclusively on the **AWS infrastructure, deployment process, and automation**.
+
+---
+## 🏗️ Infrastructure Overview
+
+This modularized Terraform configuration provisions the infrastructure for a grocery web application using AWS.
+The setup includes:
+- An auto-scalable high-available Multi-AZ EC2 environment running Dockerized applications.
+- A secure PostgreSQL database on RDS with Failover Replica in private subnets.
+- A Multi_AZ Application Load Balancer for traffic distribution.
+- An S3 bucket for storing user avatars and database dumps.
+
+The infrastructure is designed for **high availability, scalability, and security**.
+
+---
+## 🏛️ 📸 Architecture Diagrams
+
+**Resource Overview** 
+![Recources](https://github.com/user-attachments/assets/f602fc2d-3778-4e0a-98b0-92051f1e2aa1)
+
+**Networking**
+![Networking](https://github.com/user-attachments/assets/bac04d27-f24f-4156-a797-2f1b2f5232c3)
+
+**Security groups**
+![Security_groups](https://github.com/user-attachments/assets/be4133e0-34ea-41e5-a27e-f03a5fbfc863)
+
+
+## 🛠️ Terraform configuration
+
+The Terraform configuration is modularized as follows:
+
+```
+/bootstrap
+│── main.tf
+│── variables.tf
+/infrastructure
+│── /modules
+│   ├── alb
+│   ├── asg
+│   ├── ec2_launch_template
+│   ├── iam_ec2
+│   ├── iam_lambda
+│   ├── lambda
+│   ├── rds
+│   ├── s3_bucket
+│   ├── security_groups
+│   ├── vpc
+│── main.tf
+│── variables.tf
+│── outputs.tf
+│── terraform.tfvars
+│── lambda_data
+│── generate_backend.py
+```
+
+## 🏢 Infrastructure Components
+
+### **1. 🌐 Virtual Private Cloud (VPC)**
+- **Subnets:** 3 Public (for ALB, EC2) & 3 Private (for RDS).
+- **Internet Gateway:** Provides internet access to public subnets.
+- **Route Table**: Configured for public subnets routing.
+- **VPC Endpoint Gateway:** Provides access to S3 bucket over AWS network.
+
+### **2. 🔐 Security Groups**
+- ALB security group allows ports 80 and 443.
+- EC2 security group allows SSH from a specific IP and ALB traffic over port 5000.
+- RDS security group allows access only from EC2 instances.
+- Lambda security allows outbound connection to RDS instance
+
+### **3. 🖥️ Compute Infrastructure (EC2 & Auto Scaling Group)**
+- **Auto Scaling Group (ASG)**:
+  - Uses a **Launch Template** with user_data for EC2 configuration.
+  - Deploys EC2 instances in public subnets.
+  - **Scaling Settings**(adjustable as needed):
+- **Docker Deployment**:
+  - EC2 instances pull docker image from ECR.
+  - Container start automatically.
+
+### **4. ⚖️ Application Load Balancer (ALB)**
+- Distributes incoming traffic across EC2 instances via Target Group.
+- Listens on port 80 and 443.
+- Health check path: `/health`
+
+### **5. 📦 Container Registry (ECR)**
+- Stores the **Docker image** of the application.
+- EC2 instances pull the latest image during launching from the template.
+
+### **6. 🗄️ Database (Amazon RDS - PostgreSQL)**
+- **Instance Type:** `db.t3.micro` (free-tier eligible).
+- **Multi-AZ Deployment:** Enabled.
+- **Security:** Deployed in a **private subnet** with restricted access.
+
+### **7. 🗂️ Storage (S3 Bucket)**
+- **Purpose**: Stores user avatar images and db_dump files
+- **Configuration**:
+  - **Bucket Name**: Set via Terraform variables.
+  - **Versioning**: Disabled.
+  - **Lifecycle Policy**: Disabled.
+  - **Public Access Control**:
+    - Block Public ACLs: Disabled.
+    - Block Public Policy: Disabled.
+  - **Preloaded Avatar**: `user_default.png` is uploaded.
+  - **Preloaded db_dump file**: `sqlite_dump_clean.sql` is uploaded
+  - **Preloaded lambda_layer file**: `boto3-psycopg2-layer.zip` is uploaded
+
+### **8. 🎭 IAM Roles & Policies**
+- **EC2 Role:** Allows pulling images from ECR and accessing S3.
+- **Lambda Role:** Allows accessing S3, describing RDS, managing network.
+- **Step Functions Role:** Grants permissions to interact with RDS, S3, and Lambda.
+- **S3 Role**: Allows EC2 to access 'avatar' folder and Lambda 'db_dump' folder
+
+
+### **9. 🔄 Lambda Function & Step Functions**
+- **Purpose**: Ensures the database is populated once the infrastructure is ready.
+- **Step Functions**:
+  - Monitors **RDS availability**.
+  - Waits for the **database dump file to be uploaded to S3**.
+  - Triggers the **Lambda function** when conditions are met.
+- **Lambda Function**:
+  - Retrieves the SQL dump file from **S3**.
+  - Connects to **RDS**.
+  - Executes the **SQL commands** to populate the database.
+- **CloudWatch Logs**:
+  - Logs execution of Step Functions and Lambda.
+  - Enables debugging of potential issues.
+- **EventBridge Triggers**:
+  - **Monitors RDS availability** and starts Step Functions.
+  - **Detects new database dump uploads** and triggers Step Functions.
+  
+#### **Workflow Diagram**  
+
+![DB_populator Workflow Diagram](https://github.com/user-attachments/assets/2d925569-f26d-4e48-ac6e-60f37f90b35c)
+
+#### **Workflow Description**
+1. **EventBridge Rules**:
+   - **RDS Availability Rule**: Monitors the RDS instance for the `RDS-EVENT-0088` event, which indicates that the RDS instance is available. When the RDS instance becomes available, this rule triggers the Step Function.
+   - **S3 Upload Rule**: Monitors the specified S3 bucket for the upload of the SQL dump file (`var.db_dump_s3_key`). When the file is uploaded, this rule triggers the Step Function.
+
+2. **Step Functions State Machine**:
+   - **WaitForRDS**: Calls the `DescribeDBInstances` API to check the status of the RDS instance. If the RDS instance is not available, it transitions to `HandleRDSFailure`.
+   - **CheckRDSStatus**: Checks if the RDS instance status is `available`. If not, it transitions to `HandleRDSFailure`. If available, it proceeds to `CheckS3File`.
+   - **CheckS3File**: Calls the `headObject` API to check if the SQL dump file exists in S3. If the file does not exist, it transitions to `WaitForS3File` and retries after 60 seconds.
+   - **CheckS3FileExists**: Checks if the `ContentLength` of the S3 object is greater than 0. If the file exists, it proceeds to `TriggerLambda`.
+   - **TriggerLambda**: Invokes the Lambda function (`aws_lambda_function.db_populator`). If the Lambda invocation fails, it transitions to `HandleLambdaFailure`.
+   - **HandleFailures**: Handles failures for RDS, S3, and Lambda with specific error messages.
+
+3. **Lambda Function**:
+   - **Retrieve SQL Dump from S3**: Downloads the SQL dump file from the specified S3 bucket and key. Stores the file in the `/tmp` directory.
+   - **Connect to RDS**: Connects to the RDS PostgreSQL instance using the provided credentials (`POSTGRES_HOST`, `POSTGRES_PORT`, etc.).
+   - **Execute SQL Commands**: Reads the SQL dump file and executes the SQL commands to populate the database.
+   - **Logging**: Logs each step of the process (e.g., connecting to RDS, executing SQL commands) for debugging and monitoring.
+
+4. **CloudWatch Logs**:
+   - **Step Function Logs**: Logs the execution of the Step Function, including state transitions and errors. Stored in the `/aws/vendedlogs/states/db-restore-step-function` log group.
+   - **Lambda Function Logs**: Logs the execution of the Lambda function, including connection attempts, SQL execution, and errors. Stored in the `/aws/lambda/db_populator` log group.
+
+5. **Error Handling**:
+   - **RDS Failure**: If the RDS instance is not available, the Step Function transitions to `HandleRDSFailure` and logs the error.
+   - **S3 Failure**: If the SQL dump file is not found in S3, the Step Function transitions to `HandleS3Failure` and logs the error.
+   - **Lambda Failure**: If the Lambda function fails to execute, the Step Function transitions to `HandleLambdaFailure` and logs the error.
+---
+
+## 🧩 Terraform Modules
+
+This infrastructure is modularized for reusability and maintainability:
+
+### 1. `alb`
+- Deploys an **Application Load Balancer**.
+- Configures a **target group** for EC2 instances.
+
+### 2. `asg`
+- Configures the **Auto Scaling Group (ASG)** with:
+  - Desired, min, and max instance counts.
+  - Public subnet IDs for instance placement.
+  - **Load balancer target group** attachment.
+
+### 3. `lambda`
+  - Step Functions, using CloudWatch and EventBridge, monitors RDS availability and 
+    checks for the database dump file in S3.
+  - Lambda Function:
+    - Retrieves the SQL dump file from S3.
+    - Connects to RDS.
+    - Executes the SQL commands to populate the database.
+
+### 4. `ec2_launch_template`
+- Defines the **EC2 Launch Template** with:
+  - Custom **AMI ID**.
+  - Instance type (`t2.micro`).
+  - **IAM** instance **profile**.
+  - **Security Group**.
+  - Volume configuration (20GB `gp3`).
+
+### 5. `iam_ec2`
+- Creates an **IAM Role** for EC2 instances.
+- Outputs IAM role and instance profile names.
+
+### 6. `iam_lambda`
+- Creates an **IAM Role** for Lambda Function.
+- Outputs IAM role arn and IAM role name.
+
+### 7. `rds`
+- Provisions an Amazon **RDS PostgreSQL** instance.
+- Configures security groups and backup settings.
+- Can optionally Use a snapshot for database restoration.
+- Outputs **RDS Endpoint**.
+
+### 8. `s3_bucket`
+- Creates an **S3 Bucket** for storing user avatars, sql dump files and lambda layers.
+- Configures lifecycle rules and permissions.
+
+### 9. `security_groups`
+- Defines **Security Groups** for ALB, EC2, RDS and Lambda.
+- Outputs security group **IDs** for use in other modules.
+
+### 10. `vpc`
+- Provisions the **VPC**, **Subnets**, **Route Tables**, **Internet Gateway**, and **VPC Endpoint Gateway**.
+- Outputs **VPC ID**, **Public Subnet IDs**, and **Private Subnet IDs**.
+
+## Conclusion
+This modular Terraform setup ensures a scalable and secure AWS infrastructure for the grocery web application. Each module can be reused and modified independently, 
+making it easy to maintain and extend the architecture as needed. 
+The addition of Lambda, Step Functions, and EventBridge automates the database population process, while S3 provides flexible storage for user avatars, database dumps, and lambda layers.
 
 ---
 
-## 📌 Table of Contents
+# 🚀 Deployment Guide
 
-- [Overview](#-overview)
-- [Features](#-features)
-- [Screenshots & Demo](#-screenshots--demo)
-- [Prerequisites](#-prerequisites)
-- [Installation](#-installation)
-  - [Clone Repository](#-clone-repository)
-  - [Configure PostgreSQL](#-configure-postgresql)
-  - [Populate Database](#-populate-database)
-  - [Set Up Python Environment](#-set-up-python-environment)
-  - [Set Environment Variables](#-set-environment-variables)
-  - [Start the Application](#-start-the-application)
-- [Usage](#-usage)
-- [Contributing](#-contributing)
-- [License](#-license)
+This document provides a step-by-step guide to deploying the AWS infrastructure for the grocery web application using Terraform and GitHub Actions.
 
-## 🚀 Overview
+---
 
-GroceryMate is an application developed as part of the Masterschools program by **Alejandro Roman Ibanez**. It is a modern, full-featured e-commerce platform designed for seamless online grocery shopping. It provides an intuitive user interface and a secure backend, allowing users to browse products, manage their shopping basket, and complete purchases efficiently.
+## 🔄 **Automated Deployment Workflow Overview**
 
-GroceryMate is a modern, full-featured e-commerce platform designed for seamless online grocery shopping. It provides an intuitive user interface and a secure backend, allowing users to browse products, manage their shopping basket, and complete purchases efficiently.
+This project uses **GitHub Actions** to automate the infrastructure provisioning and deployment process. The workflow consists of two phases:
 
-## 🛒 Features
+### **Phase 1: Provision Core Resources & Build the Docker Image**
+1. Provisions core infrastructure:
+   - **VPC, Subnets, and Security Groups**
+   - **IAM Roles & Policies**
+   - **Amazon RDS (PostgreSQL)**
+   - **S3 bucket for storing user avatars**
+   - **Elastic Container Registry (ECR)**
+2. Retrieves Terraform outputs (e.g., `POSTGRES_HOST`, `ECR_REPOSITORY_URL`).
+3. Generates a `.env` file for the application.
+4. Builds and pushes the Docker image to ECR.
 
-- **🛡️ User Authentication**: Secure registration, login, and session management.
-- **🔒 Protected Routes**: Access control for authenticated users.
-- **🔎 Product Search & Filtering**: Browse products, apply filters, and sort by category or price.
-- **⭐ Favorites Management**: Save preferred products.
-- **🛍️ Shopping Basket**: Add, view, modify, and remove items.
-- **💳 Checkout Process**:
-  - Secure billing and shipping information handling.
-  - Multiple payment options.
-  - Automatic total price calculation.
+### **Phase 2: Deploy the Application & Populate Database**
+1. Provisions the remaining infrastructure:
+   - **Auto Scaling Group (ASG) and Launch Template**
+   - **Application Load Balancer (ALB)**
+   - **EC2 instances**
+2. **Step Functions & Lambda Function**:
+   - Step Functions **waits for RDS to become available**.
+   - **Checks for the database dump file in S3**.
+   - Triggers a **Lambda function** that retrieves the dump file and populates the database.
+3. EC2 instances pull the Docker image from ECR and start the application.
 
-## 📸 Screenshots & Demo
+This approach ensures **proper dependency management**, avoiding race conditions.
 
-![imagen](https://github.com/user-attachments/assets/ea039195-67a2-4bf2-9613-2ee1e666231a)
-![imagen](https://github.com/user-attachments/assets/a87e5c50-5a9e-45b8-ad16-2dbff41acd00)
-![imagen](https://github.com/user-attachments/assets/589aae62-67ef-4496-bd3b-772cd32ca386)
-![imagen](https://github.com/user-attachments/assets/2772b85e-81f7-446a-9296-4fdc2b652cb7)
+###  **Workflow Steps**
 
-https://github.com/user-attachments/assets/d1c5c8e4-5b16-486a-b709-4cf6e6cce6bc
+1. **Checkout Repository**  
+    - Uses `actions/checkout@v4` to clone the repository.
 
-## 📋 Prerequisites
+2. **Configure AWS Credentials**  
+    - Uses `aws-actions/configure-aws-credentials@v2` with OIDC authentication.
 
-Ensure the following dependencies are installed before running the application:
+3. **Generate `backend.tf` Dynamically**  
+    - Creates `backend.tf` with S3 and DynamoDB configurations for Terraform state management.
 
-- **🐍 Python (>=3.11)**
-- **🐘 PostgreSQL** – Database for storing product and user information.
-- **🛠️ Git** – Version control system.
+4. **Setup Terraform**  
+    - Uses `hashicorp/setup-terraform@v2` to install Terraform.
 
-## ⚙️ Installation
+5. **List Files for Debugging**  
+    - Runs `ls -R infrastructure` to verify file structure before initialization.
 
-### 🔹 Clone Repository
+6. **Initialize Terraform**  
+    - Runs `terraform init` in the `infrastructure` directory.
+
+7. **Validate Terraform Configuration**  
+    - Runs `terraform validate` to check for syntax errors.
+
+8. **Set Terraform Variables**  
+    - Exports environment variables from GitHub Secrets for Terraform.
+
+9. **Apply Terraform (Phase 1)**  
+    - Applies Terraform to provision foundational AWS resources like VPC, Security Groups, RDS, S3, IAM roles, and ECR.
+
+10. **Retrieve Terraform Outputs**  
+    - Extracts values such as `rds_host` and `ecr_repository_url` and stores them as environment variables.
+
+11. **Generate .env File**  
+    - Creates a `.env` file for the backend with required database and S3 configurations.
+
+12. **Build Docker Image**  
+    - Runs `docker build` to create the backend Docker image.
+
+13. **Tag and Push Docker Image to ECR**  
+    - Logs into ECR, tags the Docker image, and pushes it to AWS ECR.
+
+14. **Delete .env File**  
+    - Removes the `.env` file to prevent credential exposure.
+
+15. **Clean Up Docker Images**  
+    - Removes local Docker images to free up space.
+
+16. **Apply Terraform (Phase 2)**  
+    - Applies remaining Terraform changes after Docker image deployment.
+
+### **Triggering the Workflow**
+The workflow is automatically triggered on pushes to the `main` branch.
+
+###  **GitHub Secrets**
+The following secrets must be configured in the GitHub repository:
+(see *Step-by-Step Deployment Guide*)
+
+---
+
+## 💻 Step-by-Step Deployment Guide
+
+Follow these steps to clone the repository and deploy the application:
+
+### Step 1: Create an AWS Account
+1. Go to [AWS Sign-Up](https://aws.amazon.com/) and create a new AWS account.
+2. Complete the registration process and verify your email address.
+
+### Step 2: Create an IAM User and Access Keys
+1. Log in to the AWS Management Console.
+2. Navigate to **IAM (Identity and Access Management)** > **Users** > **Create User**.
+3. Enter a username (e.g., `terraform-user`) and enable **Programmatic access**.
+4. Attach the following policies:
+   - `AmazonEC2FullAccess`
+   - `AmazonRDSFullAccess`
+   - `AmazonS3FullAccess`
+   - `AmazonVPCFullAccess`
+   - `IAMFullAccess`
+   - `CloudWatchFullAccess`
+5. Review and create the user.
+6. Download the **Access Key ID** and **Secret Access Key**.
+
+### Step 3: Install and Configure AWS CLI
+1. Install the AWS CLI:
+   - [AWS CLI Installation Guide](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html)
+2. Configure the AWS CLI with your credentials:
+   ```bash
+   aws configure
+   ```
+   - Enter the Access Key ID and Secret Access Key from Step 2.
+   - Set the default region (e.g., `eu-central-1`).
+   - Leave the default output format as `json`.
+
+### Step 4: Create an SSH Key Pair for EC2 Instances
+1. Navigate to **EC2 > Key Pairs > Create Key Pair**.
+2. Enter a name (e.g., `grocery-key`) and choose `pem` as the format.
+3. Download the `.pem` file and store it securely.
+
+### Step 5: Clone the Repository
+```bash
+git clone https://github.com/Mazdaratti/AWS_grocery_v2.git
+cd AWS_grocery_v2
+```
+### Step 6: Set Bootstrap Variables
+Before running the generate_backend.py script, you need to set the variables for the bootstrap process. 
+These variables are defined in the bootstrap/variables.tf file.
+1. Navigate to the bootstrap directory:
+
+    ```bash
+    cd bootstrap
+    ```
+2. Create a terraform.tfvars file to set the variables:
+    ```bash
+    touch terraform.tfvars
+    ```
+3. Add the following variables to the terraform.tfvars file:
+
+## **Bootstrap Configuration Variables**
+
+```hcl
+region              = "eu-central-1"          # Replace with your region
+github_org          = "your-github-org"       # Replace with your GitHub organization or username
+github_repo         = "your-github-repo"      # Replace with your GitHub repository name
+s3_bucket_name      = "grocery-terraform-state-v5"
+dynamodb_table_name = "terraform-lock"
+```
+Replace your-github-org and your-github-repo with your actual GitHub organization and repository name.
+
+### Step 7: Bootstrap the Backend Locally
+1. Navigate to the **infrastructure** directory:
+    ```bash
+    cd ../infrastructure
+    ```
+2. Run the generate_backend.py script to:
+   - Bootstrap the backend resources (**S3 bucket, DynamoDB table, GitHubActionsRole**).
+   - Generate the **backend.tf** file for Terraform state management.
+    ```bash
+    python generate_backend.py
+    ```
+3. The script will:
+   - Run **terraform init** and **terraform apply** in the **bootstrap directory** to create the resources.
+   - Capture the outputs:
+      - **tf_state_bucket_name**: The name of the S3 bucket for Terraform state.
+      - **region**: The AWS region.
+      - **tf_state_lock_table**: The name of the DynamoDB table for state locking.
+      - **arn_github_actions_role**: The ARN of the GitHubActionsRole.
+   - Generate the **backend.tf** file in the **infrastructure** directory.
+
+###  Step 8: 🔑 Set Variables in GitHub Secrets
+1. Go to your GitHub repository.
+2. Navigate to **Settings > Secrets and variables > Actions**.
+3. Click **New repository secret** and add the following secrets:
+
+#### AWS Authentication Variables
+| Secret Name             | Description                  | Example Value                                    |
+|-------------------------|------------------------------|--------------------------------------------------|
+| arn_github_actions_role | ARN of the GitHubActionsRole | arn:aws:iam::123456789012:role/GitHubActionsRole |
+
+#### Terraform Variables
+| Secret Name           | Description                         | Example Value            |
+|-----------------------|-------------------------------------|--------------------------|
+| TF_VAR_region         | AWS region                          | `eu-central-1`           |
+| TF_VAR_db_user        | RDS database username               | `admin`                  |
+| TF_VAR_db_password    | RDS database password               | `SecurePassword123!`     |
+| TF_VAR_db_name        | RDS database name                   | `grocery-db`             |
+| TF_VAR_bucket_name    | S3 bucket name (unique!!!)          | `my-grocery-bucket-v5`   |
+| TF_VAR_ssh_key_name   | SSH key pair name                   | `grocery-key`            |
+| TF_VAR_ami_id         | AMI ID for EC2 instances (optional) | `ami-06ee6255945a96aba`  |
+| TF_VAR_allowed_ssh_ip | IP address allowed for SSH          | `192.168.1.1/32`         |
+| TF_VAR_snapshot_id    | RDS snapshot ID (optional)          | `snap-0123456789abcdef0` |
+
+#### Backend Configuration Variables
+| Secret Name                  | Description                                  | Example Value               |
+|------------------------------|----------------------------------------------|-----------------------------|
+| TF_STATE_BACKEND_BUCKET_NAME | Name of the S3 bucket for Terraform state    | 'my-terraform-state-bucket' |
+| TF_STATE_LOCK_TABLE          | Name of the DynamoDB table for state locking | 'terraform-lock'            |
+
+#### Environment Variables
+| Secret Name    | Description                         | Example Value                    |
+|----------------|-------------------------------------|----------------------------------|
+| JWT_SECRET_KEY | Secret key for JWT token generation | `XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` |
+
+### Step 9: Deploy the Infrastructure
+
+1. Push your changes to the main branch to trigger the GitHub Actions workflow.
+2. The workflow will:
+    - Dynamically generate the backend.tf file in the infrastructure directory 
+      using the values from GitHub Secrets.
+    - Initialize Terraform with the remote backend.
+    - Create the VPC, subnets, and security groups.
+    - Provision the RDS instance and S3 bucket.
+    - Build and push the Docker image to ECR.
+    - Launch EC2 instances using the Auto Scaling Group (ASG).
+    - Configure the Application Load Balancer (ALB) and attach the EC2 instances.
+
+### Step 10: Verify the Deployment
+
+1. After the workflow completes, check the outputs in the GitHub Actions logs.
+2. Use the ALB DNS Name output to access the application in your browser.
+3. SSH into an EC2 instance using the key pair created earlier:
+
+    ```bash
+    ssh -i path/to/your-key.pem ec2-user@<EC2_PUBLIC_IP>
+
+### Step 11: How to destroy All Resources
+
+To clean up all resources created by Terraform:  
+
+1. Navigate to the Infrastructure Directory
+    ```bash
+    cd infrastructure
+    ```
+2. Run the following command to destroy the infrastructure:
+    ```bash
+    terraform destroy
+    ```
+    - Confirm the destruction by typing yes when prompted.
+
+3. Navigate to the Bootstrap Directory
+    ```bash
+    cd ../bootstrap
+    ```
+4. Run the following command to destroy the bootstrap resources:
+    ```bash
+    terraform destroy
+    ```
+   - Confirm the destruction by typing yes when prompted.
+
+### Step 12: How to deactivate GitHub Actions Workflow
+
+To deactivate the **GitHub Actions workflow** and prevent it from running automatically:
+  - Go to your GitHub repository.
+  - Navigate to **Settings** > **Actions** > **General**.
+  - Under **Actions permissions**, select **Disable actions** for this repository.
+  - Click **Save** to deactivate the workflow.
+---
+## Conclusion
+
+This **GitHub Actions** driven, fully automated deployment of the **Grocery App** on **AWS** ensures continuous deployment with minimal manual intervention.
+The use of **OIDC** for authentication eliminates the need for hardcoding AWS credentials, making the deployment more secure.
+The modular structure allows for easy scaling and customization, making it adaptable for future enhancements.
+
+🚀 Happy Deploying!
+
+---
+
+## 🛠️ Troubleshooting
+
+**Issue: Terraform Plan Fails**
+- **Cause:** Missing or incorrect variables in GitHub Secrets.
+- **Solution:** Ensure all required variables are set.
+
+**Issue: EC2 Instances Not Starting**
+- **Cause:** Incorrect IAM role permissions or issues with `user_data`.
+- **Solution:** Verify IAM permissions and check EC2 logs.
+
+**Issue: Lambda Function Fails to Populate Database**
+- **Cause:** Incorrect S3 permissions or RDS security group.
+- **Solution:** Verify Lambda IAM role and RDS security group were created and attached.
+
+---
+
+## ❓ FAQ
+
+### Q: How do I change the instance type?
+A: Update the `instance_type` variable in `terraform.tfvars`.
+
+### Q: How do I access the RDS database?
+A: Use the **RDS Endpoint** output to connect to the database from an EC2 instance.
+
+### Q: How do I extend the infrastructure?
+A: Add new modules or modify existing ones in the `modules` directory.
+
+## 📚 Glossary
+
+- **VPC**:  Virtual Private Cloud.
+- **ALB**:  Application Load Balancer.
+- **ASG**:  Auto Scaling Group.
+- **ECR**:  Elastic Container Registry.
+- **RDS**:  Relational Database Service.
+- **IAM**:  Identity and Access Management.
+- **OIDC**: OpenID Connect authentication protocol 
+
+## 🚀 Future Enhancements
+
+- Implement **CI/CD pipelines** for automated deployments.
+- ✅Integrate **AWS Lambda** for migration of local database to rds.
+- Implement **Terraform Remote Backend**
+
+---
+
+## 🏗️ Creating the AWS Lambda Layer for Boto3 and Psycopg2
+
+To ensure the AWS Lambda function has the required dependencies (`boto3` and `psycopg2`), a Lambda layer is built using Docker. This approach ensures compatibility with AWS Lambda’s execution environment.
+
+### 1. Setting Up a Separate Project for Layer Creation
+
+A dedicated project directory is used to build the layer separately. The directory structure is as follows:
+```
+Lambda_layer_docker_project/
+│── lambda_layer/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── python/
+│── output/
+│   ├── lambda-layer.zip
+│── .venv/
+└── lambda_function/
+    └── lambda_function.py
+```
+
+- **`lambda_layer/`**: Contains the `Dockerfile`, `requirements.txt` and python/ directory where dependencies are installed.  
+- **`output/`**: Stores the generated Lambda layer ZIP file.  
+- **`lambda_function/`**: Contains the actual Lambda function that utilizes the layer.  
+
+### 2. Dockerfile for Layer Creation
+
+The Lambda layer is built using the official Amazon SAM Python 3.12 build container image:
+
+**Base Image**:
+
+**`public.ecr.aws/sam/build-python3.12:1.135.0-20250310201002-x86_64`**
+    [`📜`](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-image-repositories.html)
+    [`🐳📦`](https://gallery.ecr.aws/sam/build-python3.12)
+
+#### **Dockerfile**
+
+```dockerfile
+# Use AWS SAM Python 3.12 build image
+FROM public.ecr.aws/sam/build-python3.12:1.135.0-20250310201002-x86_64
+
+# Set the working directory
+WORKDIR /var/task
+
+# Install dependencies in a format compatible with AWS Lambda
+COPY requirements.txt .
+RUN pip install -r requirements.txt -t python/
+
+# Zip the layer for deployment
+RUN zip -r /output/lambda-layer.zip python/ 
+
+```  
+### 3. Dependencies for the Layer
+
+The required dependencies are listed in requirements.txt:
+
+``` requirements.txt
+boto3
+psycopg2-binary
+```
+
+The `Dockerfile` performs the following steps:
+
+1. **Starts from the Amazon SAM Python 3.12 image.**
+2. **Installs required dependencies (`boto3` and `psycopg2`).**
+3. **Packages them in a ZIP file under `python/` (AWS Lambda Layer format).**
+
+### 4. Building the Lambda Layer with Docker
+
+To create the layer, run the following commands inside the `Lambda_layer_docker_project` directory:
 
 ```sh
-git clone --branch version2 https://github.com/AlejandroRomanIbanez/AWS_grocery.git && cd AWS_grocery
+# Build the Docker container
+docker build -t lambda-layer .
+
+# Create a container from the image
+docker run --rm -v $(pwd)/output:/output lambda-layer
 ```
+### 4. Expected Output
 
-### 🔹 Configure PostgreSQL
+After running the above commands, the output/ directory will contain lambda-layer.zip, 
+which is ready to be deployed as an AWS Lambda Layer; 
+ensure the created layer is renamed meaningfully (e.g., boto3-psycopg2-layer.zip) before deploying.
 
-Before creating the database user, you can choose a custom username and password to enhance security. Replace `<your_secure_password>` with a strong password of your choice in the following commands.
+This version keeps the focus on how the layer is created using Docker. 
+Let me know if you need any tweaks! 🚀
 
-Create database and user:
+---
 
-```sh
-psql -U postgres -c "CREATE DATABASE grocerymate;"
-psql -U postgres -c "CREATE USER grocery_user WITH ENCRYPTED PASSWORD '<your_secure_password>';"  # Replace <your_secure_password> with a strong password of your choice
-psql -U postgres -c "ALTER USER grocery_user WITH SUPERUSER;"
-```
+### 🤝 **Contributing**
 
-### 🔹 Populate Database
+We welcome contributions! Follow these steps:
+- **Fork** the repository
+- **Create a feature branch**: git checkout -b feature/your-feature
+- **Implement changes & commit**
+- **Push & create a Pull Request (PR)**
 
-```sh
-psql -U grocery_user -d grocerymate -f backend/app/sqlite_dump_clean.sql
-```
+### 📜 **License**
 
-Verify insertion:
-
-```sh
-psql -U grocery_user -d grocerymate -c "SELECT * FROM users;"
-psql -U grocery_user -d grocerymate -c "SELECT * FROM products;"
-```
-
-### 🔹 Set Up Python Environment
-
-
-Install dependencies in an activated virtual Enviroment:
-
-```sh
-cd backend
-pip install -r requirements.txt
-```
-
-
-
-### 🔹 Set Environment Variables
-
-Create a `.env` file:
-
-```sh
-touch .env  # macOS/Linux
-ni .env -Force  # Windows
-```
-
-Generate a secure JWT key:
-
-```sh
-python3 -c "import secrets; print(secrets.token_hex(32))"
-```
-
-Update `.env` with:
-
-```ini
-JWT_SECRET_KEY=<your_generated_key>
-POSTGRES_USER=grocery_user
-POSTGRES_PASSWORD=grocery_test
-POSTGRES_DB=grocerymate_db
-POSTGRES_HOST=localhost
-POSTGRES_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}
-```
-
-### 🔹 Start the Application
-
-```sh
-python3 run.py
-```
-
-## 📖 Usage
-
-- Access the application at [http://localhost:5000](http://localhost:5000)
-- Register/Login to your account
-- Browse and search for products
-- Manage favorites and shopping basket
-- Proceed through the checkout process
-
-## 🤝 Contributing
-
-We welcome contributions! Please follow these steps:
-
-1. Fork the repository.
-2. Create a new feature branch (`feature/your-feature`).
-3. Implement your changes and commit them.
-4. Push your branch and create a pull request.
-
-## 📜 License
-
-This project is licensed under the MIT License.
-
-
-
-
+This project is licensed under the MIT License and is free for non-commercial use.
