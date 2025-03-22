@@ -108,14 +108,6 @@ resource "aws_s3_object" "avatar_image" {
   source = var.avatar_path
 }
 
-resource "aws_s3_object" "db_dump" {
-  bucket                 = aws_s3_bucket.grocery_s3.id
-  key                    = "${var.db_dump_prefix}${var.db_dump_filename}"
-  source                 = var.db_dump_path
-  # Optional: Enable Server-Side Encryption
-  server_side_encryption = "AES256"
-}
-
 resource "aws_s3_object" "layer_image" {
   bucket = aws_s3_bucket.grocery_s3.id
   key    = "${var.layer_prefix}${var.layer_filename}"
