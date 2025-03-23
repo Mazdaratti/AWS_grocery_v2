@@ -39,10 +39,11 @@ resource "aws_cloudwatch_log_resource_policy" "step_function_log_policy" {
           Service = "states.amazonaws.com"
         }
         Action = [
+          "logs:CreateLogGroup",
           "logs:CreateLogStream",
           "logs:PutLogEvents"
         ]
-        Resource = "${aws_cloudwatch_log_group.step_function_log_group.arn}:*"
+        Resource = "arn:aws:logs:*:*:*"
       }
     ]
   })
@@ -203,7 +204,9 @@ resource "aws_sfn_state_machine" "db_restore_sfn" {
    depends_on = [
     aws_cloudwatch_log_group.step_function_log_group,
     aws_iam_role.sfn_role,
+    aws_cloudwatch_log_resource_policy.step_function_log_policy,
     aws_iam_role_policy_attachment.sfn_attach
+
   ]
 }
 
