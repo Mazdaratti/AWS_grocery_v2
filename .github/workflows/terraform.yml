@@ -1,7 +1,7 @@
 name: Terraform & Docker Deploy
 
-on:
-  push:
+#on:
+  #push:
     branches:
       - main
 
@@ -9,26 +9,25 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    permissions: # Required for OIDC authentication
+    permissions:
       id-token: write  # Required for OIDC authentication
       contents: read   # Required to checkout the repository
 
     steps:
+      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Step 2: Configure AWS credentials (OIDC)
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          #aws-access-key-id: ${{ secrets.aws_access_key_id }}
-          #aws-secret-access-key: ${{ secrets.aws_secret_access_key }}
-          #aws-session-token: ${{ secrets.aws_session_token }}
-          role-to-assume: ${{ secrets.ARN_GITHUB_ACTIONS_ROLE }} # Required for OIDC
+          role-to-assume: ${{ secrets.ARN_GITHUB_ACTIONS_ROLE }}  # IAM role for GitHub Actions
           role-session-name: GitHubActionsSession
-          aws-region: ${{ secrets.TF_VAR_REGION }}
+          aws-region: ${{ secrets.TF_VAR_REGION }}  # AWS region
 
-
-      - name: Generate backend.tf dynamically
+      # Step 3: Generate backend.tf dynamically
+      - name: Generate backend.tf
         run: |
           cat <<EOF > infrastructure/backend.tf
           terraform {
@@ -41,24 +40,24 @@ jobs:
             }
           }
           EOF
-
           echo "Generated infrastructure/backend.tf"
 
+      # Step 4: Set up Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
-      - name: List files for debugging
-        run: ls -R infrastructure
-
-      - name: Initialize Terraform with Dynamic Backend
+      # Step 5: Initialize Terraform
+      - name: Initialize Terraform
         run: terraform init
         working-directory: infrastructure
 
-      - name: Validate Terraform Configuration
+      # Step 6: Validate Terraform configuration
+      - name: Validate Terraform configuration
         run: terraform validate
         working-directory: infrastructure
 
-      - name: Set Terraform Variables
+      # Step 7: Set Terraform variables
+      - name: Set Terraform variables
         run: |
           echo "TF_VAR_allowed_ssh_ip=${{ secrets.TF_VAR_ALLOWED_SSH_IP }}" >> $GITHUB_ENV
           echo "TF_VAR_key_name=${{ secrets.TF_VAR_SSH_KEY_NAME }}" >> $GITHUB_ENV
@@ -67,42 +66,48 @@ jobs:
           echo "TF_VAR_db_name=${{ secrets.TF_VAR_DB_NAME }}" >> $GITHUB_ENV
           echo "TF_VAR_region=${{ secrets.TF_VAR_REGION }}" >> $GITHUB_ENV
           echo "TF_VAR_bucket_name=${{ secrets.TF_VAR_BUCKET_NAME }}" >> $GITHUB_ENV
-          
 
-      - name: Terraform Plan
-        run: terraform plan -out=tfplan
+      # Step 8: Debug Terraform variables
+      - name: Debug Terraform variables
+        run: env | grep TF_VAR_
+
+      # Step 9: Apply Terraform (Phase 1 - Create VPC, RDS, S3, Lambda, Step Function, etc.)
+      - name: Apply Terraform (Phase 1)
+        run: |
+          terraform apply -auto-approve \
+            -target=aws_ecr_repository.repos \
+            -target=module.vpc \
+            -target=module.security_groups \
+            -target=module.rds \
+            -target=module.s3_bucket \
+            -target=module.iam_ec2 \
+            -target=module.iam_lambda \
+            -target=module.lambda \
+            || exit 1
         working-directory: infrastructure
 
-      - name: Apply Terraform
-        run: terraform apply -auto-approve tfplan
-        working-directory: infrastructure
-
-      - name: Retrieve Terraform Outputs
+      # Step 10: Retrieve Terraform outputs (RDS host, ECR repository URL, etc.)
+      - name: Retrieve Terraform outputs
         run: |
           echo "Fetching Terraform outputs..."
 
-          # Extract outputs and sanitize them
           POSTGRES_HOST=$(terraform output -raw rds_host | sed 's/^\[command\].*terraform-bin output -raw rds_host//' | awk -F '::' '{print $1}' | xargs)
           ECR_REPOSITORY_URL=$(terraform output -raw ecr_repository_url | sed 's/^\[command\].*terraform-bin output -raw ecr_repository_url//' | awk -F '::' '{print $1}' | xargs)
           ECR_REGISTRY_URL=$(echo "$ECR_REPOSITORY_URL" | cut -d'/' -f1 | xargs)
 
-          # Write outputs to $GITHUB_ENV
           echo "POSTGRES_HOST=$POSTGRES_HOST" >> $GITHUB_ENV
           echo "ECR_REPOSITORY_URL=$ECR_REPOSITORY_URL" >> $GITHUB_ENV
           echo "ECR_REGISTRY_URL=$ECR_REGISTRY_URL" >> $GITHUB_ENV
 
-          # Debugging: Print the values to verify
           echo "POSTGRES_HOST: $POSTGRES_HOST"
           echo "ECR_REPOSITORY_URL: $ECR_REPOSITORY_URL"
           echo "ECR_REGISTRY_URL: $ECR_REGISTRY_URL"
         working-directory: infrastructure
 
-      - name: Generate .env File
+      # Step 11: Generate .env file
+      - name: Generate .env file
         run: |
-          # Clear the .env file before writing new content
           > backend/.env
-
-          # Append new content to the .env file
           echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> backend/.env
           echo "POSTGRES_USER=${{ secrets.TF_VAR_DB_USER }}" >> backend/.env
           echo "POSTGRES_PASSWORD=${{ secrets.TF_VAR_DB_PASSWORD }}" >> backend/.env
@@ -113,24 +118,37 @@ jobs:
           echo "S3_REGION=${{ secrets.TF_VAR_REGION }}" >> backend/.env
           echo "USE_S3_STORAGE=true" >> backend/.env
 
-          # Debugging: Print the .env file content
           echo "Generated backend/.env:"
           cat backend/.env
 
-      - name: Build Docker Image
+      # Step 12: Build Docker image
+      - name: Build Docker image
         run: |
           cd backend
           docker build -t my-ecr-repo:latest . || exit 1
 
-      - name: Tag and Push Docker Image to ECR
+      # Step 13: Tag and push Docker image to ECR
+      - name: Tag and push Docker image to ECR
         run: |
           aws ecr get-login-password --region ${{ secrets.TF_VAR_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY_URL }}
           docker tag my-ecr-repo:latest ${{ env.ECR_REPOSITORY_URL }}:latest
-          docker push ${{ env.ECR_REPOSITORY_URL }}:latest
+          docker push ${{ env.ECR_REPOSITORY_URL }}:latest || exit 1
 
-      - name: Delete .env to Prevent Exposure
-        run: rm -f .env  # Ensures it’s gone from GitHub runner
+      # Step 14: Upload SQLite dump file to S3 (triggers Step Function)
+      - name: Upload SQLite dump file to S3
+        run: |
+          aws s3 cp backend/app/sqlite_dump_clean.sql s3://${{ secrets.TF_VAR_BUCKET_NAME }}/db_backups/sqlite_dump_clean.sql
 
-      - name: Clean Up Docker Images
+      # Step 15: Apply Terraform (Phase 2 - Create ASG, ALB, etc.)
+      - name: Apply Terraform (Phase 2)
+        run: |
+          terraform apply -auto-approve || exit 1
+        working-directory: infrastructure
+
+      # Step 16: Clean up .env and Docker images
+      - name: Delete .env to prevent exposure
+        run: rm -f backend/.env
+
+      - name: Clean up Docker images
         run: |
           docker rmi my-ecr-repo:latest ${{ env.ECR_REPOSITORY_URL }}:latest || true

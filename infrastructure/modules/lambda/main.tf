@@ -1,53 +1,82 @@
-# Lambda Layer Resource
-resource "aws_lambda_layer_version" "my_layer" {
-  layer_name          = "boto3-psycopg2-layer"
-  description         = "My custom Lambda layer"
-  compatible_runtimes = ["python3.12"]
+# ======================
+# Lambda Layer
+# ======================
 
-  s3_bucket        = var.bucket_name
-  s3_key           = var.lambda_layer_s3_key
+# Create a Lambda layer containing dependencies (e.g., boto3, psycopg2)
+resource "aws_lambda_layer_version" "my_layer" {
+  layer_name          = "boto3-psycopg2-layer"  # Name of the Lambda layer
+  description         = "My custom Lambda layer"  # Description of the layer
+  compatible_runtimes = ["python3.12"]  # Compatible Python runtime
+
+  s3_bucket = var.bucket_name  # S3 bucket where the layer code is stored
+  s3_key    = var.lambda_layer_s3_key  # S3 key for the layer code
 }
 
-# Lambda Function Resource
-resource "aws_lambda_function" "db_populator" {
-  function_name = "db_populator"
-  role          = var.iam_lambda_role_arn
-  handler       = "lambda_function.lambda_handler"
-  runtime       = "python3.12"
-  timeout       = 60
-  filename      = var.lambda_zip_file
-  source_code_hash = filebase64sha256(var.lambda_zip_file)
-  layers = [aws_lambda_layer_version.my_layer.arn]
+# ======================
+# CloudWatch Log Groups
+# ======================
 
+# Create a CloudWatch Log Group for the Lambda function
+resource "aws_cloudwatch_log_group" "lambda_log_group" {
+  name              = "/aws/lambda/db_populator"  # Static name for the log group
+  retention_in_days = 7  # Retain logs for 7 days
+}
+
+# Create a CloudWatch Log Group for the Step Function
+resource "aws_cloudwatch_log_group" "step_function_log_group" {
+  name              = "/aws/vendedlogs/states/db-restore-step-function"  # Log group name
+  retention_in_days = 7  # Retain logs for 7 days
+}
+
+# ======================
+# Lambda Function
+# ======================
+
+# Create the Lambda function to populate the RDS database
+resource "aws_lambda_function" "db_populator" {
+  function_name = "db_populator"  # Name of the Lambda function
+  role          = var.iam_lambda_role_arn  # IAM role for the Lambda function
+  handler       = "lambda_function.lambda_handler"  # Entry point for the Lambda function
+  runtime       = "python3.12"  # Python runtime for the Lambda function
+  timeout       = 60  # Timeout in seconds
+  filename      = var.lambda_zip_file  # Path to the Lambda function code
+  source_code_hash = filebase64sha256(var.lambda_zip_file)  # Hash of the Lambda code
+  layers = [aws_lambda_layer_version.my_layer.arn]  # Attach the Lambda layer
+
+  # Configure VPC access for the Lambda function
   vpc_config {
-    subnet_ids         = var.private_subnet_ids #local.rds_az
-    security_group_ids = [var.lambda_security_group_id]
+    subnet_ids         = var.private_subnet_ids  # Private subnets for the Lambda function
+    security_group_ids = [var.lambda_security_group_id]  # Security group for the Lambda function
   }
 
+  # Set environment variables for the Lambda function
   environment {
     variables = {
-      POSTGRES_HOST     = var.rds_host
-      POSTGRES_PORT     = var.rds_port
-      POSTGRES_DB       = var.db_name
-      POSTGRES_USER     = var.db_username
-      POSTGRES_PASSWORD = var.rds_password
-      S3_BUCKET_NAME    = var.bucket_name
-      S3_OBJECT_KEY     = var.db_dump_s3_key
-      S3_REGION         = var.region
+      POSTGRES_HOST     = var.rds_host  # RDS database host
+      POSTGRES_PORT     = var.rds_port  # RDS database port
+      POSTGRES_DB       = var.db_name  # RDS database name
+      POSTGRES_USER     = var.db_username  # RDS database username
+      POSTGRES_PASSWORD = var.rds_password  # RDS database password
+      S3_BUCKET_NAME    = var.bucket_name  # S3 bucket name
+      S3_OBJECT_KEY     = var.db_dump_s3_key  # S3 key for the SQLite dump file
+      S3_REGION         = var.region  # AWS region
     }
   }
+
+  # Ensure the log group is created before the Lambda function
+  depends_on = [aws_cloudwatch_log_group.lambda_log_group]
 }
 
-resource "aws_cloudwatch_log_group" "lambda_log_group" {
-  name              = "/aws/lambda/${aws_lambda_function.db_populator.function_name}"
-  retention_in_days = 7  # Set the log retention period (e.g., 7 days)
-}
+# ======================
+# Step Function
+# ======================
 
-# Step Functions State Machine
+# Create a Step Function to orchestrate the database population process
 resource "aws_sfn_state_machine" "db_restore_sfn" {
-  name     = "db-restore-step-function"
-  role_arn = aws_iam_role.sfn_role.arn
+  name     = "db-restore-step-function"  # Name of the Step Function
+  role_arn = aws_iam_role.sfn_role.arn  # IAM role for the Step Function
 
+  # Step Function definition (JSON)
   definition = jsonencode({
     Comment = "Step function to trigger Lambda after RDS is ready and SQL dump is in S3.",
     StartAt = "WaitForRDS",
@@ -93,7 +122,7 @@ resource "aws_sfn_state_machine" "db_restore_sfn" {
         Next = "CheckS3FileExists",
         Catch = [
           {
-            ErrorEquals = ["States.ALL"],  # Catch all errors
+            ErrorEquals = ["States.ALL"],
             Next = "HandleS3Failure"
           }
         ]
@@ -120,7 +149,7 @@ resource "aws_sfn_state_machine" "db_restore_sfn" {
         End = true,
         Catch = [
           {
-            ErrorEquals = ["States.ALL"],  # Catch all errors
+            ErrorEquals = ["States.ALL"],
             Next = "HandleLambdaFailure"
           }
         ]
@@ -142,17 +171,27 @@ resource "aws_sfn_state_machine" "db_restore_sfn" {
       }
     }
   })
+
+  # Configure logging for the Step Function
   logging_configuration {
     log_destination = "${aws_cloudwatch_log_group.step_function_log_group.arn}:*"
-    level           = "ALL"  # Log all events (you can also use "ERROR" or "FATAL")
+    level           = "ALL"  # Log all events
     include_execution_data = true  # Include execution data in the logs
   }
+
+  # Ensure the CloudWatch Log Group is created before the Step Function
+  depends_on = [aws_cloudwatch_log_group.step_function_log_group]
 }
 
-# IAM Role for Step Functions
-resource "aws_iam_role" "sfn_role" {
-  name = "step-functions-role"
+# ======================
+# IAM Roles and Policies
+# ======================
 
+# Create an IAM role for the Step Function
+resource "aws_iam_role" "sfn_role" {
+  name = "step-functions-role"  # Name of the IAM role
+
+  # Trust policy allowing Step Functions to assume the role
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -167,11 +206,12 @@ resource "aws_iam_role" "sfn_role" {
   })
 }
 
-# IAM Policy for Step Functions
+# Create an IAM policy for the Step Function
 resource "aws_iam_policy" "sfn_policy" {
-  name        = "step-functions-policy"
+  name        = "step-functions-policy"  # Name of the IAM policy
   description = "Policy for Step Functions to check RDS, S3, and invoke Lambda."
 
+  # Policy document
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -212,45 +252,22 @@ resource "aws_iam_policy" "sfn_policy" {
   })
 }
 
-# Attach Policies to Step Functions Role
-
+# Attach the IAM policy to the Step Function role
 resource "aws_iam_role_policy_attachment" "sfn_attach" {
   role       = aws_iam_role.sfn_role.name
   policy_arn = aws_iam_policy.sfn_policy.arn
 }
 
-resource "aws_cloudwatch_log_group" "step_function_log_group" {
-  name              = "/aws/vendedlogs/states/db-restore-step-function"
-  retention_in_days = 7  # Set the log retention period (e.g., 7 days)
-}
+# ======================
+# EventBridge Rule
+# ======================
 
-# CloudWatch Event Rule for RDS Availability
-resource "aws_cloudwatch_event_rule" "rds_ready" {
-  name        = "rds-instance-ready"
-  description = "Trigger Step Function when RDS is fully available."
-
-  event_pattern = jsonencode({
-    source      = ["aws.rds"]
-    detail-type = ["RDS DB Instance Event"]
-    detail = {
-      EventID = ["RDS-EVENT-0088"]  # DB Instance Available
-    }
-  })
-}
-
-# CloudWatch Event Target to Trigger Step Function
-resource "aws_cloudwatch_event_target" "step_function_trigger_rds" {
-  rule      = aws_cloudwatch_event_rule.rds_ready.name
-  target_id = "StepFunctionTriggerRDS"
-  arn       = aws_sfn_state_machine.db_restore_sfn.arn
-  role_arn  = aws_iam_role.eventbridge_step_function_role.arn
-}
-
-# EventBridge Rule for S3 Upload Events
+# Create an EventBridge rule to trigger the Step Function when the SQL dump is uploaded to S3
 resource "aws_cloudwatch_event_rule" "s3_upload_event" {
-  name        = "s3-dump-uploaded"
+  name        = "s3-dump-uploaded"  # Name of the EventBridge rule
   description = "Trigger Step Function when a SQL dump is uploaded."
 
+  # Event pattern to match S3 "Object Created" events
   event_pattern = jsonencode({
     source      = ["aws.s3"]
     detail-type = ["Object Created"]
@@ -265,7 +282,7 @@ resource "aws_cloudwatch_event_rule" "s3_upload_event" {
   })
 }
 
-# EventBridge Target to Trigger Step Function
+# Create an EventBridge target to trigger the Step Function when the SQL dump is uploaded to S3
 resource "aws_cloudwatch_event_target" "step_function_trigger_s3" {
   rule      = aws_cloudwatch_event_rule.s3_upload_event.name
   target_id = "StepFunctionTriggerS3"
@@ -273,9 +290,15 @@ resource "aws_cloudwatch_event_target" "step_function_trigger_s3" {
   role_arn  = aws_iam_role.eventbridge_step_function_role.arn
 }
 
-resource "aws_iam_role" "eventbridge_step_function_role" {
-  name = "eventbridge-step-function-role"
+# ======================
+# IAM Role for EventBridge
+# ======================
 
+# Create an IAM role for EventBridge to trigger the Step Function
+resource "aws_iam_role" "eventbridge_step_function_role" {
+  name = "eventbridge-step-function-role"  # Name of the IAM role
+
+  # Trust policy allowing EventBridge to assume the role
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -290,10 +313,12 @@ resource "aws_iam_role" "eventbridge_step_function_role" {
   })
 }
 
+# Create an IAM policy for EventBridge to start the Step Function
 resource "aws_iam_policy" "eventbridge_step_function_policy" {
-  name        = "eventbridge-step-function-policy"
+  name        = "eventbridge-step-function-policy"  # Name of the IAM policy
   description = "Allows EventBridge to start the Step Functions state machine."
 
+  # Policy document
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -306,10 +331,12 @@ resource "aws_iam_policy" "eventbridge_step_function_policy" {
   })
 }
 
+# Create an IAM policy for EventBridge to write logs to CloudWatch
 resource "aws_iam_policy" "eventbridge_logging_policy" {
-  name        = "eventbridge-logging-policy"
+  name        = "eventbridge-logging-policy"  # Name of the IAM policy
   description = "Allows EventBridge to write logs to CloudWatch."
 
+  # Policy document
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -328,6 +355,7 @@ resource "aws_iam_policy" "eventbridge_logging_policy" {
   })
 }
 
+# Attach the IAM policies to the EventBridge role
 resource "aws_iam_role_policy_attachment" "eventbridge_step_function_attach" {
   role       = aws_iam_role.eventbridge_step_function_role.name
   policy_arn = aws_iam_policy.eventbridge_step_function_policy.arn
