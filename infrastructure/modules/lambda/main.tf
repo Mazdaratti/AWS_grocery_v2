@@ -28,6 +28,26 @@ resource "aws_cloudwatch_log_group" "step_function_log_group" {
   retention_in_days = 7  # Retain logs for 7 days
 }
 
+resource "aws_cloudwatch_log_resource_policy" "step_function_log_policy" {
+  policy_name     = "StepFunctionLogPolicy"
+  policy_document = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "states.amazonaws.com"
+        }
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "${aws_cloudwatch_log_group.step_function_log_group.arn}:*"
+      }
+    ]
+  })
+}
+
 # ======================
 # Lambda Function
 # ======================
@@ -236,21 +256,15 @@ resource "aws_iam_policy" "sfn_policy" {
       },
       {
         Effect   = "Allow"
-        Action   = [
-          "logs:CreateLogDelivery",
-          "logs:GetLogDelivery",
-          "logs:UpdateLogDelivery",
-          "logs:DeleteLogDelivery",
-          "logs:ListLogDeliveries",
-          "logs:CreateLogStream",
+        Action = [
           "logs:CreateLogGroup",
-          "logs:PutLogEvents",
-          "logs:PutResourcePolicy",
-          "logs:DescribeResourcePolicies",
-          "logs:DescribeLogGroups"
+          "logs:PutRetentionPolicy",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
         ]
-        Resource = [aws_cloudwatch_log_group.step_function_log_group.arn,
-        "${aws_cloudwatch_log_group.step_function_log_group.arn}:*"]
+        Resource = ["${aws_cloudwatch_log_group.step_function_log_group.arn}:*"]
       }
     ]
   })
