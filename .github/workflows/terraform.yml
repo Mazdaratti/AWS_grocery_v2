@@ -1,7 +1,7 @@
 name: Terraform & Docker Deploy
 
-#on:
-  #push:
+on:
+  push:
     branches:
       - main
 

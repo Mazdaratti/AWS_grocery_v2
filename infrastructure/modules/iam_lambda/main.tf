@@ -125,7 +125,7 @@ resource "aws_iam_role_policy_attachment" "lambda_logging_attach" {
   policy_arn = aws_iam_policy.lambda_logging_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
-  role       = aws_iam_role.lambda_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
+#resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
+  #role       = aws_iam_role.lambda_role.name
+  #policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+#}
