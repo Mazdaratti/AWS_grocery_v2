@@ -180,7 +180,11 @@ resource "aws_sfn_state_machine" "db_restore_sfn" {
   }
 
   # Ensure the CloudWatch Log Group is created before the Step Function
-  depends_on = [aws_cloudwatch_log_group.step_function_log_group]
+   depends_on = [
+    aws_cloudwatch_log_group.step_function_log_group,
+    aws_iam_role.sfn_role,
+    aws_iam_role_policy_attachment.sfn_attach
+  ]
 }
 
 # ======================
