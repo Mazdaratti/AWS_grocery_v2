@@ -1,4 +1,4 @@
-name: Terraform & Docker Deploy
+name: Terraform & Docker Deploy first run
 
 on:
   push:
