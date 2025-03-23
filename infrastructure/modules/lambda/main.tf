@@ -194,11 +194,11 @@ resource "aws_sfn_state_machine" "db_restore_sfn" {
   })
 
   # Configure logging for the Step Function
-  logging_configuration {
-    log_destination = "${aws_cloudwatch_log_group.step_function_log_group.arn}:*"
-    level           = "ALL"  # Log all events
-    include_execution_data = true  # Include execution data in the logs
-  }
+  #logging_configuration {
+    #log_destination = "${aws_cloudwatch_log_group.step_function_log_group.arn}:*"
+    #level           = "ALL"  # Log all events
+    #include_execution_data = true  # Include execution data in the logs
+  #}
 
   # Ensure the CloudWatch Log Group is created before the Step Function
    depends_on = [
