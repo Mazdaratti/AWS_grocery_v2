@@ -122,9 +122,9 @@ module "lambda" {
   db_username               = var.db_username
   db_identifier             = var.db_identifier
   rds_password              = var.db_password
-  bucket_name               = var.bucket_name
+  bucket_name               = module.s3_bucket.bucket_name
   db_dump_s3_key            = local.db_dump_s3_key
-  lambda_layer_s3_key       = local.lambda_layer_s3_key
+  lambda_layer_s3_key       = module.s3_bucket.lambda_layer_s3_key
   region                    = var.region
   rds_arn                   = module.rds.rds_arn
   lambda_security_group_id  = module.security_groups.lambda_security_group_id
