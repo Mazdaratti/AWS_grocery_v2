@@ -69,9 +69,9 @@ module "ec2_launch_template" {
 module "asg" {
   source             = "./modules/asg"
   asg_name           = "grocery-asg"
-  desired_capacity   = 0 # adjust for desired capacity
+  desired_capacity   = 1 # adjust for desired capacity
   max_size           = 4 # adjust for desired max_size
-  min_size           = 0 # adjust for desired min_size
+  min_size           = 1 # adjust for desired min_size
   public_subnet_ids  = module.vpc.public_subnet_ids
   launch_template_id = module.ec2_launch_template.launch_template_id
   ec2_name           = "grocery-ec2"
