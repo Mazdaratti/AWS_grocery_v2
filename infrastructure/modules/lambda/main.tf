@@ -266,24 +266,18 @@ resource "aws_iam_policy" "sfn_policy" {
         Effect   = "Allow"
         Action = [
           "logs:CreateLogGroup",
-          "logs:PutRetentionPolicy",
-          "logs:DescribeLogGroups",
-          "logs:DescribeLogStreams",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = ["${aws_cloudwatch_log_group.step_function_log_group.arn}:*"]
-      },
-      {
-        Effect   = "Allow"
-        Action = [
           "logs:CreateLogDelivery",
           "logs:GetLogDelivery",
           "logs:UpdateLogDelivery",
           "logs:DeleteLogDelivery",
           "logs:ListLogDeliveries",
           "logs:PutResourcePolicy",
-          "logs:DescribeResourcePolicies"
+          "logs:PutRetentionPolicy",
+          "logs:DescribeResourcePolicies",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
         ]
         Resource = "*"
       }
