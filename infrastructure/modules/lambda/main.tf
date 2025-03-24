@@ -2,7 +2,7 @@
 # Lambda Layer
 # ======================
 
-# Create a Lambda layer containing dependencies (e.g., boto3, psycopg2)
+# Create a Lambda layer
 resource "aws_lambda_layer_version" "my_layer" {
   layer_name          = "boto3-psycopg2-layer"  # Name of the Lambda layer
   description         = "My custom Lambda layer"  # Description of the layer

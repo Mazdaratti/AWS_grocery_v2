@@ -179,8 +179,7 @@ The Terraform configuration is modularized as follows:
 
 
 #### **Workflow Description**
-1. **EventBridge Rules**:
-   - **RDS Availability Rule**: Monitors the RDS instance for the `RDS-EVENT-0088` event, which indicates that the RDS instance is available. When the RDS instance becomes available, this rule triggers the Step Function.
+1. **EventBridge Rule**:
    - **S3 Upload Rule**: Monitors the specified S3 bucket for the upload of the SQL dump file (`var.db_dump_s3_key`). When the file is uploaded, this rule triggers the Step Function.
 
 2. **Step Functions State Machine**:
