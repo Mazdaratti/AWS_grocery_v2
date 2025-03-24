@@ -4,3 +4,4 @@ frontend/temp_extract/
 frontend/src/config.js~
 venv/
 .idea/terraform.xml
+.gitattributes
