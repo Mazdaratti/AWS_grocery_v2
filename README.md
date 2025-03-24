@@ -279,29 +279,35 @@ This document provides a step-by-step guide to deploying the AWS infrastructure 
 
 This project uses **GitHub Actions** to automate the infrastructure provisioning and deployment process. The workflow consists of two phases:
 
-### **Phase 1: Provision Core Resources & Build the Docker Image**
+### **Phase 1: Provision Core Resources, Build the Docker Image and push it to ECR, Populate Database**
 1. Provisions core infrastructure:
+   - **Elastic Container Registry (ECR)**
    - **VPC, Subnets, and Security Groups**
    - **IAM Roles & Policies**
    - **Amazon RDS (PostgreSQL)**
    - **S3 bucket for storing user avatars**
-   - **Elastic Container Registry (ECR)**
+   - **Step Functions & Lambda Function**
 2. Retrieves Terraform outputs (e.g., `POSTGRES_HOST`, `ECR_REPOSITORY_URL`).
 3. Generates a `.env` file for the application.
 4. Builds and pushes the Docker image to ECR.
+5. Uploads the SQLite dump file to S3, which triggers an AWS Step Function:
+   - Step Functions **waits for RDS to become available**.
+   - **Checks the database dump file in S3**.
+   - Triggers a **Lambda function** that retrieves the dump file and populates the database.
 
-### **Phase 2: Deploy the Application & Populate Database**
+### **Phase 2: Deploy the Application**
 1. Provisions the remaining infrastructure:
    - **Auto Scaling Group (ASG) and Launch Template**
    - **Application Load Balancer (ALB)**
    - **EC2 instances**
-2. **Step Functions & Lambda Function**:
-   - Step Functions **waits for RDS to become available**.
-   - **Checks for the database dump file in S3**.
-   - Triggers a **Lambda function** that retrieves the dump file and populates the database.
-3. EC2 instances pull the Docker image from ECR and start the application.
+2. EC2 instances pull the Docker image from ECR and start the application.
 
 This approach ensures **proper dependency management**, avoiding race conditions.
+
+## Workflow Trigger
+
+- Runs on **push** to the `main` branch.
+- Uses **OIDC authentication** to configure AWS credentials securely.
 
 ###  **Workflow Steps**
 
@@ -317,48 +323,61 @@ This approach ensures **proper dependency management**, avoiding race conditions
 4. **Setup Terraform**  
     - Uses `hashicorp/setup-terraform@v2` to install Terraform.
 
-5. **List Files for Debugging**  
-    - Runs `ls -R infrastructure` to verify file structure before initialization.
-
-6. **Initialize Terraform**  
+5. **Initialize Terraform**  
     - Runs `terraform init` in the `infrastructure` directory.
 
-7. **Validate Terraform Configuration**  
+6. **Validate Terraform Configuration**  
     - Runs `terraform validate` to check for syntax errors.
 
-8. **Set Terraform Variables**  
+7. **Set Terraform Variables**  
     - Exports environment variables from GitHub Secrets for Terraform.
 
-9. **Apply Terraform (Phase 1)**  
-    - Applies Terraform to provision foundational AWS resources like VPC, Security Groups, RDS, S3, IAM roles, and ECR.
+8. **Apply Terraform (Phase 1)**  
+    - Applies Terraform to provision foundational AWS resources like ECR, VPC, Security Groups, RDS, S3, IAM roles, and Lambda/Step functions.
 
-10. **Retrieve Terraform Outputs**  
-    - Extracts values such as `rds_host` and `ecr_repository_url` and stores them as environment variables.
+9. **Retrieve Terraform Outputs**  
+   - Extracts values such as `rds_host` and `ecr_repository_url` and stores them as environment variables.
 
-11. **Generate .env File**  
+10. **Generate .env File**  
     - Creates a `.env` file for the backend with required database and S3 configurations.
 
-12. **Build Docker Image**  
+11. **Build Docker Image**  
     - Runs `docker build` to create the backend Docker image.
 
-13. **Tag and Push Docker Image to ECR**  
+12. **Tag and Push Docker Image to ECR**  
     - Logs into ECR, tags the Docker image, and pushes it to AWS ECR.
 
-14. **Delete .env File**  
-    - Removes the `.env` file to prevent credential exposure.
+13. **Upload SQLite Dump File to S3 (Triggers Step Function)**
+    - Runs the following command to upload the SQLite dump to S3:
+    ```sh
+    aws s3 cp backend/app/sqlite_dump_clean.sql s3://${{ secrets.TF_VAR_BUCKET_NAME }}/db_backups/sqlite_dump_clean.sql
+    ```
+    - This triggers an **AWS Step Function** that:
+      1. Validates database availability.
+      2. Verifies `sqlite_dump_clean.sql` integrity.
+      3. Invokes a **Lambda function** that retrieves the dump file from S3 and populates the database.
+    - This process ensures the database is correctly initialized **before** ASG launches instances.
 
-15. **Clean Up Docker Images**  
-    - Removes local Docker images to free up space.
-
-16. **Apply Terraform (Phase 2)**  
+14. **Apply Terraform (Phase 2)**  
     - Applies remaining Terraform changes after Docker image deployment.
 
-### **Triggering the Workflow**
-The workflow is automatically triggered on pushes to the `main` branch.
+15. **Delete .env File**  
+    - Removes the `.env` file to prevent credential exposure.
 
-###  **GitHub Secrets**
-The following secrets must be configured in the GitHub repository:
-(see *Step-by-Step Deployment Guide*)
+16. **Clean Up Docker Images**  
+    - Removes local Docker images to free up space.
+    
+17. **Complete Deployment**
+    - Marks the deployment as successful if all components are running as expected.
+
+## Deployment Status Badges
+Add the following badge to your `README.md` to monitor deployment status:
+
+    ```
+    ![Deployment Status](https://github.com/<your-org>/<your-repo>/actions/workflows/deployment.yml/badge.svg)
+    ```
+
+This badge updates in real-time based on the latest workflow execution.
 
 ---
 
@@ -538,6 +557,32 @@ To deactivate the **GitHub Actions workflow** and prevent it from running automa
   - Under **Actions permissions**, select **Disable actions** for this repository.
   - Click **Save** to deactivate the workflow.
 ---
+
+## Rollback Instructions
+If an issue occurs during deployment, follow these rollback steps:
+
+### Option 1: Revert to Previous Terraform State
+```sh
+terraform destroy -auto-approve
+```
+This will remove all resources created by Terraform.
+
+### Option 2: Rollback to Previous Docker Images
+If the latest Docker images cause issues, redeploy the previous working images:
+```sh
+docker pull <ECR_REPO_URL>:previous-tag
+docker tag <ECR_REPO_URL>:previous-tag <ECR_REPO_URL>:latest
+docker push <ECR_REPO_URL>:latest
+```
+Then restart your EC2 instances to pull the previous image.
+
+### Option 3: Manually Restore Database
+If the database migration fails, restore from the latest S3 backup:
+```sh
+aws s3 cp s3://${{ secrets.TF_VAR_BUCKET_NAME }}/db_backups/previous_backup.sql local_backup.sql
+psql -h <RDS_HOST> -U <DB_USER> -d <DB_NAME> -f local_backup.sql
+```
+
 ## Conclusion
 
 This **GitHub Actions** driven, fully automated deployment of the **Grocery App** on **AWS** ensures continuous deployment with minimal manual intervention.
@@ -589,7 +634,7 @@ A: Add new modules or modify existing ones in the `modules` directory.
 
 - Implement **CI/CD pipelines** for automated deployments.
 - ✅Integrate **AWS Lambda** for migration of local database to rds.
-- Implement **Terraform Remote Backend**
+- ✅Implement **Terraform Remote Backend**
 
 ---
 
