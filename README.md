@@ -175,7 +175,8 @@ The Terraform configuration is modularized as follows:
   
 #### **Workflow Diagram**  
 
-![DB_populator Workflow Diagram](https://github.com/user-attachments/assets/2d925569-f26d-4e48-ac6e-60f37f90b35c)
+![DB_populator Workflow Diagram](https://github.com/user-attachments/assets/9e825620-fe24-44c3-8626-ff16fc414f16)
+
 
 #### **Workflow Description**
 1. **EventBridge Rules**:
