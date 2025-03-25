@@ -137,7 +137,7 @@ The Terraform configuration is modularized as follows:
 - **Security:** Deployed in a **private subnet** with restricted access.
 
 ### **7. 🗂️ Storage (S3 Bucket)**
-- **Purpose**: Stores user avatar images and db_dump files
+- **Purpose**: Stores user avatar images, db_dump and layer files
 - **Configuration**:
   - **Bucket Name**: Set via Terraform variables.
   - **Versioning**: Disabled.
@@ -169,9 +169,8 @@ The Terraform configuration is modularized as follows:
 - **CloudWatch Logs**:
   - Logs execution of Step Functions and Lambda.
   - Enables debugging of potential issues.
-- **EventBridge Triggers**:
-  - **Monitors RDS availability** and starts Step Functions.
-  - **Detects new database dump uploads** and triggers Step Functions.
+- **EventBridge Trigger**:
+  - **Detects new database dump uploads in S3 Bucket** and triggers Step Functions.
   
 #### **Workflow Diagram**  
 
