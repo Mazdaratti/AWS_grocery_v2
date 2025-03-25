@@ -5,8 +5,7 @@ on:
     branches:
       - main
     paths-ignore:
-      - 'README.md'
-      - 'DEPLOYMENT.md'
+      - '**/*.md'
 
 jobs:
   deploy:
